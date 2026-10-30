@@ -1,0 +1,78 @@
+package com.sunflower.ctrllink.url.repository;
+
+import com.sunflower.ctrllink.url.entity.UrlEntity;
+import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
+
+    Optional<UrlEntity> findByShortId(String shortId);
+
+    Optional<UrlEntity> findByLongUrl(String longUrl);
+
+    List<UrlEntity> findTop1000ByOrderByClickCountDesc();
+
+    Optional<UrlEntity> findFirstByLongUrlAndIsCustomFalse(String longUrl);
+
+    Optional<UrlEntity> findFirstByLongUrlAndUserIdAndIsCustomFalse(String longUrl, Long userId);
+
+    Optional<UrlEntity> findFirstByLongUrlAndUserIdIsNullAndIsCustomFalse(String longUrl);
+
+    Optional<UrlEntity> findFirstByLongUrlAndUserIdAndIsCustomFalseAndExpiryTimeIsNullAndPasswordIsNull(String longUrl, Long userId);
+
+    Optional<UrlEntity> findFirstByLongUrlAndUserIdIsNullAndIsCustomFalseAndExpiryTimeIsNullAndPasswordIsNull(String longUrl);
+
+    @Query(value = "SELECT nextval('url_id_seq')", nativeQuery = true)
+    Long getNextId();
+
+    @Transactional
+    @Modifying
+    @Query("""
+        UPDATE UrlEntity u
+        SET u.clickCount = u.clickCount + :count,
+            u.lastAccessedTime = CURRENT_TIMESTAMP
+        WHERE u.shortId = :shortId
+        """)
+    void incrementClickCount(@Param("shortId") String shortId,
+                             @Param("count") Long count);
+
+    @Transactional
+    @Modifying
+    @Query("""
+    DELETE FROM UrlEntity u
+    WHERE u.expiryTime IS NOT NULL
+    AND u.expiryTime < CURRENT_TIMESTAMP
+""")
+    int deleteExpiredUrls();
+
+        List<UrlEntity> findByUserIdOrderByCreatedAtDesc(Long userId);
+        Page<UrlEntity> findByUserId(Long userId, Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE UrlEntity u SET u.orderIndex = :orderIndex WHERE u.shortId = :shortId AND u.userId = :userId")
+    void updateOrderIndex(@Param("shortId") String shortId, @Param("userId") Long userId, @Param("orderIndex") int orderIndex);
+
+    Optional<UrlEntity> findByShortIdAndUserId(String shortId, Long userId);
+
+    @Query("SELECT DISTINCT u FROM UrlEntity u LEFT JOIN u.tags t " +
+           "WHERE u.userId = :userId AND (" +
+           "LOWER(u.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.shortId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.longUrl) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(t) LIKE LOWER(CONCAT('%', :search, '%'))" +
+           ")")
+    Page<UrlEntity> searchByUserIdAndKeyword(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(u.clickCount), 0) FROM UrlEntity u")
+    long sumTotalClicks();
+
+}
