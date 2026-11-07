@@ -6,6 +6,7 @@ import com.sunflower.ctrllink.analytics.service.AnalyticsService;
 import com.sunflower.ctrllink.exception.BadRequestException;
 import com.sunflower.ctrllink.exception.ForbiddenException;
 import com.sunflower.ctrllink.exception.NotFoundException;
+import com.sunflower.ctrllink.rate.RateLimiterService;
 import com.sunflower.ctrllink.url.dto.ReorderRequestDto;
 import com.sunflower.ctrllink.url.dto.ShortenRequestDto;
 import com.sunflower.ctrllink.url.dto.ShortenResponseDto;
@@ -21,6 +22,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.apache.juli.logging.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +46,7 @@ import java.util.Map;
 @Tag(name = "URL Management", description = "Endpoints for creating, managing, and tracking shortened links")
 public class UrlController {
 
+    private static final Logger log = LoggerFactory.getLogger(UrlController.class);
     private final UrlService urlService;
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
@@ -49,6 +54,8 @@ public class UrlController {
     private final GlobalStatsRepository globalStatsRepository;
     private final EncryptionUtils encryptionUtils;
     private final AnalyticsService analyticsService;
+    private final RateLimiterService rateLimiterService;
+
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -58,7 +65,7 @@ public class UrlController {
                          PasswordEncoder passwordEncoder,
                          GlobalStatsRepository globalStatsRepository,
                          EncryptionUtils encryptionUtils,
-                         AnalyticsService analyticsService) {
+                         AnalyticsService analyticsService,RateLimiterService rateLimiterService) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
         this.userRepository = userRepository;
@@ -66,6 +73,7 @@ public class UrlController {
         this.globalStatsRepository = globalStatsRepository;
         this.encryptionUtils = encryptionUtils;
         this.analyticsService = analyticsService;
+        this.rateLimiterService = rateLimiterService;
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -94,6 +102,9 @@ public class UrlController {
     @PostMapping("/shorten")
     public ShortenResponseDto shorten(@Valid @RequestBody ShortenRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
+        log.info("IP : {}", ip);
+
+        rateLimiterService.checkLimit("rate:shorten:" + ip, 10, 60);
 
         Long userId = getCurrentUserId();
         if (userId != null) {

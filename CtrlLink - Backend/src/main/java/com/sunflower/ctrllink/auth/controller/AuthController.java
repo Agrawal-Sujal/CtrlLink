@@ -5,6 +5,7 @@ import com.sunflower.ctrllink.auth.dto.GoogleTokenRequestDto;
 import com.sunflower.ctrllink.auth.dto.LoginRequestDto;
 import com.sunflower.ctrllink.auth.dto.RegisterRequestDto;
 import com.sunflower.ctrllink.auth.service.AuthService;
+import com.sunflower.ctrllink.rate.RateLimiterService;
 import com.sunflower.ctrllink.security.JwtBlacklistService;
 import com.sunflower.ctrllink.security.JwtService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,22 +28,25 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
     private final JwtBlacklistService blacklistService;
+    private final RateLimiterService rateLimiterService;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
     private String frontendUrl;
 
     public AuthController(AuthService authService,
                           JwtService jwtService,
-                          JwtBlacklistService blacklistService) {
+                          JwtBlacklistService blacklistService,RateLimiterService rateLimiterService) {
         this.authService = authService;
         this.jwtService = jwtService;
         this.blacklistService = blacklistService;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @Operation(summary = "Register a new user", description = "Creates a new user account and sends a verification email.")
     @PostMapping("/register")
     public AuthResponseDto register(@Valid @RequestBody RegisterRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
+        rateLimiterService.checkLimit("rate:register:" + ip, 5, 60);
         return authService.register(request);
     }
 
@@ -50,6 +54,7 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponseDto login(@Valid @RequestBody LoginRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
+        rateLimiterService.checkLimit("rate:login:" + ip, 10, 60);
         return authService.login(request);
     }
 

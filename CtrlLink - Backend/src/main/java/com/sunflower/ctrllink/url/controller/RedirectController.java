@@ -147,16 +147,15 @@ public class RedirectController {
     }
 
     private String generateSocialHtml(String title, String longUrl, String shortId, HttpServletRequest request) {
-        String displayTitle = (title != null && !title.isBlank()) ? title : "ShunyaLink | Smart URL Shortener & Digital Identity";
-        String description = "AI-secured short link by ShunyaLink — smart URL shortener with analytics and Bio-Link profiles.";
+        String displayTitle = (title != null && !title.isBlank()) ? title : "CtrlLink | Smart URL Shortener & Digital Identity";
+        String description = "AI-secured short link by CtrlLink — smart URL shortener with analytics and Bio-Link profiles.";
         
-        // Dynamically detect the host (sl.madhavv.me vs shunyalink.madhavv.me)
         String scheme = request.getScheme();
         String serverName = request.getServerName();
         String url = scheme + "://" + serverName + "/" + shortId;
         
         // Branded social image remains on the main frontend domain
-        String imageUrl = "https://shunyalink.madhavv.me/logo-social.png"; 
+        String imageUrl = "";
 
         return "<!DOCTYPE html>\n" +
                 "<html>\n" +
