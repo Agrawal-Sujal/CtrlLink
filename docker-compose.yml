@@ -64,9 +64,15 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:3000}
       APP_ALLOWED_ORIGIN: ${APP_ALLOWED_ORIGIN:-http://localhost:3000}
+      APP_URL_ID_BATCH_SIZE: ${APP_URL_ID_BATCH_SIZE:-100}
       APP_JWT_SECRET: ${APP_JWT_SECRET:-my-super-secret-key-that-is-at-least-256-bits-long-for-hs256}
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
       APP_ENCRYPTION_SECRET: ${APP_ENCRYPTION_SECRET:-my-ultra-secret-key-32-chars-long}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-671534648137-qi5mvbmdf3paikng3stn3dnosv2bv3rs.apps.googleusercontent.com}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8080/actuator/health"]
       interval: 15s
