@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Lock, Tag, Type, Plus } from 'lucide-react';
+import { X, Save, Lock, Type } from 'lucide-react';
 import { Button } from '../Button';
 import { Input } from '../Input';
+import { TagInput } from './TagInput';
 import { AlertBanner } from '../AlertBanner';
 import { urlApi, getErrorMessage } from '../../services/api';
 import { UrlStatsResponse } from '../../types/url';
@@ -22,7 +23,6 @@ export const UrlEditModal: React.FC<UrlEditModalProps> = ({
   const [title, setTitle] = useState('');
   const [password, setPassword] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,18 +36,6 @@ export const UrlEditModal: React.FC<UrlEditModalProps> = ({
   }, [url]);
 
   if (!isOpen || !url) return null;
-
-  const handleAddTag = () => {
-    const clean = tagInput.trim().toLowerCase();
-    if (clean && !tags.includes(clean)) {
-      setTags([...tags, clean]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,59 +122,8 @@ export const UrlEditModal: React.FC<UrlEditModalProps> = ({
             />
           </div>
 
-          {/* Tags Manager */}
-          <div className="space-y-2 text-left">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-              Tags
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Add a tag (e.g. social, docs)"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                  className="w-full rounded-xl text-xs sm:text-sm py-2 px-3 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] focus:border-indigo-500 outline-hidden"
-                />
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={handleAddTag}
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-              >
-                Add
-              </Button>
-            </div>
-
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center gap-1 text-xs font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg border border-indigo-500/20"
-                  >
-                    <Tag className="w-3 h-3" />
-                    <span>{t}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(t)}
-                      className="p-0.5 rounded-full hover:bg-indigo-500/20 text-zinc-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Tags Manager with Autocomplete */}
+          <TagInput selectedTags={tags} onChange={setTags} />
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100 dark:border-white/[0.06]">
             <Button

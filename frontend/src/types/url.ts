@@ -61,3 +61,8 @@ export interface ResolvePasswordResponse {
   longUrl: string;
 }
 
+export interface TagSummary {
+  tag: string;
+  count: number;
+}
+

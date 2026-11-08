@@ -74,6 +74,19 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
            ")")
     Page<UrlEntity> searchByUserIdAndKeyword(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
+    @Query("SELECT DISTINCT u FROM UrlEntity u JOIN u.tags t WHERE u.userId = :userId AND LOWER(t) = LOWER(:tag)")
+    Page<UrlEntity> findByUserIdAndTag(@Param("userId") Long userId, @Param("tag") String tag, Pageable pageable);
+
+    @Query("SELECT DISTINCT u FROM UrlEntity u JOIN u.tags t WHERE u.userId = :userId AND LOWER(t) = LOWER(:tag) AND (" +
+           "LOWER(u.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.shortId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.longUrl) LIKE LOWER(CONCAT('%', :search, '%'))" +
+           ")")
+    Page<UrlEntity> searchByUserIdAndTagAndKeyword(@Param("userId") Long userId, @Param("tag") String tag, @Param("search") String search, Pageable pageable);
+
+    @Query("SELECT t, COUNT(DISTINCT u.id) FROM UrlEntity u JOIN u.tags t WHERE u.userId = :userId GROUP BY t ORDER BY COUNT(DISTINCT u.id) DESC")
+    List<Object[]> getTagCountsByUserId(@Param("userId") Long userId);
+
     @Query("SELECT COALESCE(SUM(u.clickCount), 0) FROM UrlEntity u")
     long sumTotalClicks();
 

@@ -10,6 +10,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ResendVerificationPage } from './pages/ResendVerificationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { UrlsPage } from './pages/UrlsPage';
+import { TagsPage } from './pages/TagsPage';
 import { PasswordChallengePage } from './pages/PasswordChallengePage';
 import { RedirectPage } from './pages/RedirectPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
                 <Route path="/" element={<UrlsPage />} />
                 <Route path="/urls" element={<Navigate to="/" replace />} />
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/tags" element={<TagsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 

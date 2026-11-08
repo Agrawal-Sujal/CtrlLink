@@ -10,6 +10,7 @@ import com.sunflower.ctrllink.rate.RateLimiterService;
 import com.sunflower.ctrllink.url.dto.ReorderRequestDto;
 import com.sunflower.ctrllink.url.dto.ShortenRequestDto;
 import com.sunflower.ctrllink.url.dto.ShortenResponseDto;
+import com.sunflower.ctrllink.url.dto.TagSummaryDto;
 import com.sunflower.ctrllink.url.dto.UrlStatsResponseDto;
 import com.sunflower.ctrllink.url.entity.UrlEntity;
 import com.sunflower.ctrllink.url.repository.UrlRepository;
@@ -136,10 +137,19 @@ public class UrlController {
     public Page<UrlStatsResponseDto> getMyLinks(
             @AuthenticationPrincipal Object principal,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String tag,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long userId = getUserIdFromPrincipal(principal);
-        log.debug("Fetching user links: userId={} [search={}, page={}]", userId, search, pageable.getPageNumber());
-        return urlService.getMyLinks(userId, search, pageable);
+        log.debug("Fetching user links: userId={} [search={}, tag={}, page={}]", userId, search, tag, pageable.getPageNumber());
+        return urlService.getMyLinks(userId, search, tag, pageable);
+    }
+
+    @Operation(summary = "Get user's tags", description = "Returns a list of distinct tags with link counts for the authenticated user.", security = @SecurityRequirement(name = "Bearer Authentication"))
+    @GetMapping("/tags")
+    public List<TagSummaryDto> getUserTags(@AuthenticationPrincipal Object principal) {
+        Long userId = getUserIdFromPrincipal(principal);
+        log.debug("Fetching user tags for userId={}", userId);
+        return urlService.getUserTags(userId);
     }
 
     @Operation(summary = "Reorder links", description = "Updates the sequence of links for the authenticated user.", security = @SecurityRequirement(name = "Bearer Authentication"))
