@@ -1,32 +1,34 @@
 services:
 
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  # ── PostgreSQL Database ───────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: CtrlLink-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: CtrlLink
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d CtrlLink"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ctrllink-network
 
-  # ── Redis ───────────────────────────────────────────────────────────────────
+  # ── Redis Cache ───────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: ctrllink-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -34,6 +36,87 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ctrllink-network
+
+  # ── Backend Application (Spring Boot 4 / Java 21) ─────────────────────────
+  backend:
+    build:
+      context: "./CtrlLink - Backend"
+      dockerfile: Dockerfile
+    container_name: ctrllink-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      APP_BASE_URL: ${APP_BASE_URL}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL}
+      APP_ALLOWED_ORIGIN: ${APP_ALLOWED_ORIGIN}
+      APP_URL_ID_BATCH_SIZE: ${APP_URL_ID_BATCH_SIZE}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS}
+      APP_ENCRYPTION_SECRET: ${APP_ENCRYPTION_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ctrllink-network
+
+  # ── Frontend Application (React / Vite) ───────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    container_name: ctrllink-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ctrllink-network
+
+  # ── Nginx Reverse Proxy / Gateway ─────────────────────────────────────────
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: ctrllink-nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "3000:3000"
+    networks:
+      - ctrllink-network
+
+networks:
+  ctrllink-network:
+    driver: bridge
 
 volumes:
   postgres_data:
