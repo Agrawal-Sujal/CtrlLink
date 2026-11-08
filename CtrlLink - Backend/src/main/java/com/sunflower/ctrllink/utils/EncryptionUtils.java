@@ -1,5 +1,7 @@
 package com.sunflower.ctrllink.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +13,7 @@ import java.util.Base64;
 @Component
 public class EncryptionUtils {
 
+    private static final Logger log = LoggerFactory.getLogger(EncryptionUtils.class);
     private final String secretKey;
 
     public EncryptionUtils(@Value("${app.encryption.secret:my-ultra-secret-key-32-chars-long}") String secretKey) {
@@ -30,6 +33,7 @@ public class EncryptionUtils {
             cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
             return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
+            log.error("Error while encrypting: {}", e.getMessage(), e);
             throw new RuntimeException("Error while encrypting: " + e.toString());
         }
     }
@@ -46,7 +50,8 @@ public class EncryptionUtils {
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
             return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            // If decryption fails, it might be an old hash or corrupted data
+            log.warn("Decryption failed for ciphertext preview '{}...': {}",
+                    strToDecrypt.substring(0, Math.min(8, strToDecrypt.length())), e.getMessage());
             return null;
         }
     }

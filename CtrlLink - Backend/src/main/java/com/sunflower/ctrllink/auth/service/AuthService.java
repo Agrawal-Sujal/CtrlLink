@@ -12,6 +12,8 @@ import com.sunflower.ctrllink.exception.ConflictException;
 import com.sunflower.ctrllink.security.JwtService;
 import com.sunflower.ctrllink.user.entity.UserEntity;
 import com.sunflower.ctrllink.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -53,8 +56,10 @@ public class AuthService {
     }
 
     public AuthResponseDto register(RegisterRequestDto request) {
+        log.info("Processing registration for email={}", request.getEmail());
         // Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration rejected: email={} is already registered", request.getEmail());
             throw new ConflictException("Email already registered");
         }
 
@@ -71,21 +76,28 @@ public class AuthService {
         verificationTokenRepo.save(verificationToken);
         emailService.sendVerificationEmail(user.getEmail(), verificationToken.getToken());
 
+        log.info("User registered successfully: userId={}, email={}", user.getId(), user.getEmail());
         // Generate JWT and return
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new AuthResponseDto(token, user.getEmail(), user.getName());
     }
 
     public AuthResponseDto login(LoginRequestDto request) {
+        log.info("Processing login for email={}", request.getEmail());
         // Find user by email
         UserEntity user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.warn("Login failed: account not found for email={}", request.getEmail());
+                    return new BadRequestException("Invalid email or password");
+                });
 
         // Verify password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.warn("Login failed: incorrect password for email={}", request.getEmail());
             throw new BadRequestException("Invalid email or password");
         }
 
+        log.info("User logged in successfully: userId={}, email={}", user.getId(), user.getEmail());
         // Generate JWT and return
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new AuthResponseDto(token, user.getEmail(), user.getName());
@@ -145,10 +157,15 @@ public class AuthService {
     }
 
     public String verifyEmail(String token) {
+        log.info("Processing email verification token");
         VerificationTokenEntity vToken = verificationTokenRepo.findByToken(token)
-                .orElseThrow(() -> new BadRequestException("Invalid verification token"));
+                .orElseThrow(() -> {
+                    log.warn("Email verification failed: token not found");
+                    return new BadRequestException("Invalid verification token");
+                });
 
         if (vToken.isExpired()) {
+            log.warn("Email verification failed: token expired");
             throw new BadRequestException("Verification token has expired");
         }
 
@@ -158,6 +175,7 @@ public class AuthService {
         if (user.isEmailVerified()) {
             // Delete the consumed token to keep DB clean
             verificationTokenRepo.delete(vToken);
+            log.debug("User id={} email={} was already verified", user.getId(), user.getEmail());
             return "Email is already verified!";
         }
 
@@ -169,11 +187,13 @@ public class AuthService {
 
         // Dispatch Welcome Email asynchronously
         emailService.sendWelcomeEmail(user.getEmail(), user.getName());
+        log.info("User id={} email={} verified successfully", user.getId(), user.getEmail());
 
         return "Email verified successfully!";
     }
 
     public void resendVerificationEmail(String email) {
+        log.info("Resending verification email to {}", email);
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
@@ -191,13 +211,16 @@ public class AuthService {
 
         // Dispatch email
         emailService.sendVerificationEmail(user.getEmail(), newToken.getToken());
+        log.info("Dispatched new verification email to {}", email);
     }
 
     public String requestPasswordReset(String email) {
+        log.info("Processing password reset request for {}", email);
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("No account found with that email"));
 
         if ("GOOGLE".equals(user.getAuthProvider())) {
+            log.warn("Password reset rejected: user is a Google OAuth account ({})", email);
             throw new BadRequestException("Google accounts cannot reset password. Use Google login.");
         }
 
@@ -205,18 +228,22 @@ public class AuthService {
         resetToken.setUser(user);
         passwordResetTokenRepo.save(resetToken);
         emailService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken());
+        log.info("Dispatched password reset token to {}", email);
 
         return "Password reset email sent!";
     }
 
     public String resetPassword(String token, String newPassword) {
+        log.info("Processing password reset confirmation");
         PasswordResetTokenEntity resetToken = passwordResetTokenRepo.findByToken(token)
                 .orElseThrow(() -> new BadRequestException("Invalid reset token"));
 
         if (resetToken.isExpired()) {
+            log.warn("Password reset failed: token expired");
             throw new BadRequestException("Reset token has expired");
         }
         if (resetToken.isUsed()) {
+            log.warn("Password reset failed: token already used");
             throw new BadRequestException("Reset token has already been used");
         }
 
@@ -226,6 +253,7 @@ public class AuthService {
 
         resetToken.setUsed(true);
         passwordResetTokenRepo.save(resetToken);
+        log.info("Password reset successfully completed for userId={}", user.getId());
 
         return "Password reset successfully!";
     }

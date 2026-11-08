@@ -6,12 +6,14 @@ import com.sunflower.ctrllink.user.dto.ProfileResponseDto;
 import com.sunflower.ctrllink.user.dto.ProfileUpdateRequestDto;
 import com.sunflower.ctrllink.user.entity.UserEntity;
 import com.sunflower.ctrllink.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
 
 @Service
 public class ProfileService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
     private final UserRepository userRepository;
 
     public ProfileService(UserRepository userRepository) {
@@ -39,6 +41,7 @@ public class ProfileService {
         }
 
         userRepository.save(user);
+        log.info("Profile updated for userId={}", userId);
     }
 
 }

@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ import java.util.Map;
 @Tag(name = "Authentication", description = "Endpoints for user registration, login, data recovery, and email verification")
 public class AuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
     private final JwtService jwtService;
     private final JwtBlacklistService blacklistService;
@@ -46,6 +49,7 @@ public class AuthController {
     @PostMapping("/register")
     public AuthResponseDto register(@Valid @RequestBody RegisterRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
+        log.info("Registration attempt for email={} [ip={}]", request.getEmail(), ip);
         rateLimiterService.checkLimit("rate:register:" + ip, 5, 60);
         return authService.register(request);
     }
@@ -54,6 +58,7 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponseDto login(@Valid @RequestBody LoginRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
+        log.info("Login attempt for email={} [ip={}]", request.getEmail(), ip);
         rateLimiterService.checkLimit("rate:login:" + ip, 10, 60);
         return authService.login(request);
     }
@@ -61,12 +66,14 @@ public class AuthController {
     @Operation(summary = "Google OAuth login", description = "Authenticates user using a Google ID Token.")
     @PostMapping("/google")
     public AuthResponseDto googleLogin(@Valid @RequestBody GoogleTokenRequestDto request) {
+        log.info("Google OAuth login verification initiated");
         return authService.googleLogin(request.getIdToken());
     }
 
     @Operation(summary = "Verify email address", description = "Activates user account using the token sent via email.")
     @GetMapping("/verify")
     public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+        log.info("Email verification requested with token preview={}", token.substring(0, Math.min(6, token.length())) + "...");
         authService.verifyEmail(token);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(frontendUrl + "/login?verified=true"))
@@ -77,6 +84,7 @@ public class AuthController {
     @PostMapping("/resend-verification")
     public ResponseEntity<Void> resendVerification(@RequestBody Map<String, String> request) {
         String email = request.get("email");
+        log.info("Resend verification requested for email={}", email);
         authService.resendVerificationEmail(email);
         return ResponseEntity.ok().build();
     }
@@ -84,18 +92,22 @@ public class AuthController {
     @Operation(summary = "Request password reset", description = "Sends a password reset link to the specified email address.")
     @PostMapping("/forgot-password")
     public String forgotPassword(@RequestBody Map<String, String> request) {
-        return authService.requestPasswordReset(request.get("email"));
+        String email = request.get("email");
+        log.info("Password reset requested for email={}", email);
+        return authService.requestPasswordReset(email);
     }
 
     @Operation(summary = "Reset password", description = "Updates password using the secret token from the reset email.")
     @PostMapping("/reset-password")
     public String resetPassword(@RequestBody Map<String, String> request) {
+        log.info("Password reset submission received");
         return authService.resetPassword(request.get("token"), request.get("newPassword"));
     }
 
     @Operation(summary = "Logout user", description = "Invalidates the current JWT token by adding it to the Redis blacklist.", security = @SecurityRequirement(name = "Bearer Authentication"))
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
+        log.info("Logout request received");
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);

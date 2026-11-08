@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('ProfilePage');
 import {
   User as UserIcon,
   Mail,
@@ -61,7 +64,7 @@ export const ProfilePage: React.FC = () => {
           profilePictureUrl: data.profilePictureUrl || undefined,
         });
       } catch (err) {
-        console.warn('Could not fetch backend profile:', err);
+        log.warn('Could not fetch backend profile:', err);
       }
     };
 

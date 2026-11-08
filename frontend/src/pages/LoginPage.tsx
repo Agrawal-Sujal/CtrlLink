@@ -9,6 +9,9 @@ import { AlertBanner } from '../components/AlertBanner';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../services/api';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('LoginPage');
 
 export const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -31,7 +34,7 @@ export const LoginPage: React.FC = () => {
           origin: { y: 0.6 },
         });
       } catch (e) {
-        console.error('Confetti error:', e);
+        log.error('Confetti error:', e);
       }
     }
   }, [searchParams]);

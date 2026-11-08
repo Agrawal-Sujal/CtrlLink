@@ -8,6 +8,8 @@ import com.sunflower.ctrllink.user.repository.UserRepository;
 import com.sunflower.ctrllink.user.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ import java.util.Map;
 @Tag(name = "User Profile", description = "Endpoints for managing user display names, bios, and theme colors")
 public class ProfileController {
 
+    private static final Logger log = LoggerFactory.getLogger(ProfileController.class);
     private final ProfileService profileService;
     private final UrlService dbUrlService;
     private final UserRepository userRepository;
@@ -45,6 +48,7 @@ public class ProfileController {
         }
 
         ProfileResponseDto profile = profileService.getProfileById(userId);
+        log.debug("Fetched profile for userId={}", userId);
         return ResponseEntity.ok(profile);
     }
 
@@ -68,6 +72,7 @@ public class ProfileController {
             return ResponseEntity.status(401).body(Map.of("message", "Invalid principal type"));
         }
 
+        log.info("Updating profile settings for userId={}", userId);
         profileService.updateProfile(userId, request);
         return ResponseEntity.ok(Map.of("message", "Profile updated successfully"));
     }

@@ -28,29 +28,35 @@ public class CacheWarmup {
 
     @PostConstruct
     public void preloadCache() {
+        long start = System.currentTimeMillis();
+        log.info("Starting Redis cache warmup: fetching top popular links...");
 
-        List<UrlEntity> urls =
-                urlRepository.findTop1000ByOrderByClickCountDesc();
+        try {
+            List<UrlEntity> urls =
+                    urlRepository.findTop1000ByOrderByClickCountDesc();
 
-        for(UrlEntity url : urls) {
+            for(UrlEntity url : urls) {
 
-            // Original simple cache (kept for backward compatibility with getLongUrl)
-            String simpleKey = "url:" + url.getShortId();
-            redisTemplate.opsForValue().set(simpleKey, url.getLongUrl(), 24, TimeUnit.HOURS);
+                // Original simple cache (kept for backward compatibility with getLongUrl)
+                String simpleKey = "url:" + url.getShortId();
+                redisTemplate.opsForValue().set(simpleKey, url.getLongUrl(), 24, TimeUnit.HOURS);
 
-            // New: Redis Hash cache for redirect hot path (zero-DB redirects)
-            String hashKey = "url:entity:" + url.getShortId();
-            Map<String, String> fields = new HashMap<>();
-            fields.put("longUrl", url.getLongUrl());
-            fields.put("hasPassword", String.valueOf(url.getPassword() != null));
-            fields.put("title", url.getTitle() != null ? url.getTitle() : "");
-            fields.put("expiryTime", url.getExpiryTime() != null
-                    ? url.getExpiryTime().toString() : "");
+                // New: Redis Hash cache for redirect hot path (zero-DB redirects)
+                String hashKey = "url:entity:" + url.getShortId();
+                Map<String, String> fields = new HashMap<>();
+                fields.put("longUrl", url.getLongUrl());
+                fields.put("hasPassword", String.valueOf(url.getPassword() != null));
+                fields.put("title", url.getTitle() != null ? url.getTitle() : "");
+                fields.put("expiryTime", url.getExpiryTime() != null
+                        ? url.getExpiryTime().toString() : "");
 
-            redisTemplate.opsForHash().putAll(hashKey, fields);
-            redisTemplate.expire(hashKey, 24, TimeUnit.HOURS);
+                redisTemplate.opsForHash().putAll(hashKey, fields);
+                redisTemplate.expire(hashKey, 24, TimeUnit.HOURS);
+            }
+
+            log.info("Cache warmup completed: loaded {} links into Redis in {}ms", urls.size(), (System.currentTimeMillis() - start));
+        } catch (Exception e) {
+            log.error("Cache warmup failed (application will continue): {}", e.getMessage(), e);
         }
-
-        log.info("Cache warmup completed loaded={}", urls.size());
     }
 }

@@ -29,7 +29,7 @@ public class EmailService {
 
     @Async
     public void sendVerificationEmail(String to, String token) {
-        log.debug("sendVerificationEmail to {} token: {}", to, token);
+        log.info("Sending verification email to {}", to);
         String link = baseUrl + "/api/v1/auth/verify?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
@@ -38,11 +38,12 @@ public class EmailService {
         message.setSubject("CtrlLink - Verify your email");
         message.setText("Click the link below to verify your email:\n\n" + link
                 + "\n\nThis link expires in 24 hours.");
-        mailSender.send(message);
+        sendSafe(message, to, "Verification Email");
     }
 
     @Async
     public void sendPasswordResetEmail(String to, String token) {
+        log.info("Sending password reset email to {}", to);
         String link = frontendUrl + "/reset-password?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
@@ -51,11 +52,12 @@ public class EmailService {
         message.setSubject("CtrlLink - Reset your password");
         message.setText("Click the link below to reset your password:\n\n" + link
                 + "\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.");
-        mailSender.send(message);
+        sendSafe(message, to, "Password Reset Email");
     }
 
     @Async
     public void sendWelcomeEmail(String to, String name) {
+        log.info("Sending welcome email to {}", to);
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailUsername);
         message.setTo(to);
@@ -63,11 +65,12 @@ public class EmailService {
         message.setText("Hi " + name + ",\n\n"
                 + "Thank you for verifying your email address! Your CtrlLink account is now fully active.\n\n"
                 + "The CtrlLink Team");
-        mailSender.send(message);
+        sendSafe(message, to, "Welcome Email");
     }
 
     @Async
     public void sendGoogleWelcomeEmail(String to, String name) {
+        log.info("Sending Google welcome email to {}", to);
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailUsername);
         message.setTo(to);
@@ -75,6 +78,15 @@ public class EmailService {
         message.setText("Hi " + name + ",\n\n"
                 + "Welcome aboard! You have successfully registered for CtrlLink using your Google account.\n\n"
                 + "The CtrlLink Team");
-        mailSender.send(message);
+        sendSafe(message, to, "Google Welcome Email");
+    }
+
+    private void sendSafe(SimpleMailMessage message, String to, String emailType) {
+        try {
+            mailSender.send(message);
+            log.info("{} sent successfully to {}", emailType, to);
+        } catch (Exception e) {
+            log.error("Failed to send {} to {}: {}", emailType, to, e.getMessage(), e);
+        }
     }
 }

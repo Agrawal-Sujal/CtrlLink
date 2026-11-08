@@ -8,6 +8,9 @@ import { Button } from '../components/Button';
 import { AlertBanner } from '../components/AlertBanner';
 import { PasswordStrength } from '../components/PasswordStrength';
 import { authApi, getErrorMessage } from '../services/api';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('ResetPasswordPage');
 
 export const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -60,7 +63,7 @@ export const ResetPasswordPage: React.FC = () => {
           origin: { y: 0.6 },
         });
       } catch (e) {
-        console.error('Confetti error:', e);
+        log.error('Confetti error:', e);
       }
 
       setIsSuccess(true);

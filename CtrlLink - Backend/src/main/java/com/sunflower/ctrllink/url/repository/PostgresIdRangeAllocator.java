@@ -43,6 +43,7 @@ public class PostgresIdRangeAllocator implements IdRangeAllocator {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long allocateRange(String allocatorName, int batchSize) {
+        log.debug("Executing atomic range update on row '{}' for batchSize={}", allocatorName, batchSize);
         List<Long> result = jdbcTemplate.query(
                 "UPDATE id_range_allocator SET next_id = next_id + ? WHERE allocator_name = ? RETURNING next_id - ?",
                 (rs, rowNum) -> rs.getLong(1),
@@ -50,7 +51,9 @@ public class PostgresIdRangeAllocator implements IdRangeAllocator {
         );
 
         if (!result.isEmpty()) {
-            return result.get(0);
+            long startId = result.get(0);
+            log.debug("Successfully reserved ID range [{}, {}] on allocator '{}'", startId, startId + batchSize - 1, allocatorName);
+            return startId;
         }
 
         // If the row doesn't exist yet, seed it and retry
@@ -66,6 +69,8 @@ public class PostgresIdRangeAllocator implements IdRangeAllocator {
                 batchSize, allocatorName, batchSize
         );
 
-        return retry.isEmpty() ? INITIAL_FALLBACK_ID : retry.get(0);
+        long startId = retry.isEmpty() ? INITIAL_FALLBACK_ID : retry.get(0);
+        log.info("Seeded and reserved initial ID range [{}, {}] on allocator '{}'", startId, startId + batchSize - 1, allocatorName);
+        return startId;
     }
 }

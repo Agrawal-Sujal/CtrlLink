@@ -4,6 +4,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -15,6 +18,8 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final JwtBlacklistService blacklistService;
@@ -41,17 +46,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 3. Extract and validate the token
         String token = authHeader.substring(7); // Remove "Bearer "
 
-        // NEW: Check if the token has been revoked via logout
-        if (jwtService.isTokenValid(token) && !blacklistService.isTokenBlacklisted(token)) {
-            String email = jwtService.extractEmail(token);
-            Long userId = jwtService.extractUserId(token);
+        try {
+            boolean valid = jwtService.isTokenValid(token);
+            boolean blacklisted = blacklistService.isTokenBlacklisted(token);
 
-            // 4. Create an authentication object and set it in the context
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(userId, null, List.of());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            if (valid && !blacklisted) {
+                String email = jwtService.extractEmail(token);
+                Long userId = jwtService.extractUserId(token);
 
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+                // Populate MDC userId for request correlation
+                if (userId != null) {
+                    MDC.put("userId", String.valueOf(userId));
+                }
+
+                // 4. Create an authentication object and set it in the context
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userId, null, List.of());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.debug("Authenticated user id={} email={}", userId, email);
+            } else if (!valid) {
+                log.debug("JWT rejected: Token is expired or invalid");
+            } else {
+                log.warn("JWT rejected: Token has been revoked / blacklisted");
+            }
+        } catch (Exception e) {
+            log.warn("JWT validation error: {}", e.getMessage());
         }
 
         // 5. Continue to the next filter / controller
