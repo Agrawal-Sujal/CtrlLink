@@ -19,6 +19,7 @@ import {
   UpdateMetadataRequest,
   ResolvePasswordResponse,
   TagSummary,
+  PublicStatsResponse,
 } from '../types/url';
 
 const log = logger.withModule('API');
@@ -218,6 +219,11 @@ export const urlApi = {
     const response = await apiClient.post<ResolvePasswordResponse>(`/api/v1/url/resolve/${shortId}`, {
       password,
     });
+    return response.data;
+  },
+
+  getPublicStats: async (): Promise<PublicStatsResponse> => {
+    const response = await apiClient.get<PublicStatsResponse>('/api/v1/url/stats/public');
     return response.data;
   },
 };

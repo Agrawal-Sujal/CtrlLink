@@ -21,10 +21,15 @@ public interface GlobalStatsRepository extends JpaRepository<GlobalStatsEntity, 
 
     @Transactional
     @Modifying
+    @Query("UPDATE GlobalStatsEntity g SET g.totalLinks = CASE WHEN g.totalLinks >= :count THEN g.totalLinks - :count ELSE 0 END WHERE g.id = 1")
+    void decrementLinks(@Param("count") long count);
+
+    @Transactional
+    @Modifying
     @Query("UPDATE GlobalStatsEntity g SET g.totalUsers = g.totalUsers + 1 WHERE g.id = 1")
     void incrementUsers();
     
     default GlobalStatsEntity getStats() {
-        return findById(1L).orElseThrow(() -> new RuntimeException("Platform stats not initialized!"));
+        return findById(1L).orElseGet(() -> save(new GlobalStatsEntity(1L, 0L, 0L, 0L)));
     }
 }

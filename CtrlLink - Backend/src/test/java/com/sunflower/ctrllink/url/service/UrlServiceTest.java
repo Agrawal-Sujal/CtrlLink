@@ -164,4 +164,54 @@ class UrlServiceTest {
         assertEquals("xyz12", result.getContent().get(0).getShortId());
         assertTrue(result.getContent().get(0).getTags().contains("developer"));
     }
+
+    @Test
+    void shouldIncrementPlatformLinksWhenCustomAliasCreated() {
+        String longUrl = "https://example.com/custom";
+        String alias = "mybrand";
+        when(urlRepository.findByShortId(alias)).thenReturn(Optional.empty());
+        when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UrlEntity result = urlService.shortenUrl(longUrl, alias, null, 1L, null, null, false, null);
+
+        assertNotNull(result);
+        assertEquals(alias, result.getShortId());
+        verify(globalStatsRepository, times(1)).incrementLinks();
+    }
+
+    @Test
+    void shouldDecrementPlatformLinksWhenUrlDeleted() {
+        String shortId = "abc12";
+        Long userId = 10L;
+        UrlEntity entity = new UrlEntity();
+        entity.setShortId(shortId);
+        entity.setUserId(userId);
+        when(urlRepository.findByShortIdAndUserId(shortId, userId)).thenReturn(Optional.of(entity));
+
+        urlService.deleteUrl(shortId, userId);
+
+        verify(urlRepository, times(1)).delete(entity);
+        verify(globalStatsRepository, times(1)).decrementLinks(1);
+    }
+
+    @Test
+    void shouldDecrementPlatformLinksWhenUrlsBulkDeleted() {
+        Long userId = 10L;
+        UrlEntity entity1 = new UrlEntity();
+        entity1.setShortId("url1");
+        entity1.setUserId(userId);
+
+        UrlEntity entity2 = new UrlEntity();
+        entity2.setShortId("url2");
+        entity2.setUserId(userId);
+
+        when(urlRepository.findByShortIdAndUserId("url1", userId)).thenReturn(Optional.of(entity1));
+        when(urlRepository.findByShortIdAndUserId("url2", userId)).thenReturn(Optional.of(entity2));
+
+        urlService.deleteUrls(List.of("url1", "url2"), userId);
+
+        verify(urlRepository, times(1)).delete(entity1);
+        verify(urlRepository, times(1)).delete(entity2);
+        verify(globalStatsRepository, times(1)).decrementLinks(2);
+    }
 }
