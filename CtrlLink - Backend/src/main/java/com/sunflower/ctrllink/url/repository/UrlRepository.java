@@ -16,6 +16,8 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
 
     Optional<UrlEntity> findByShortId(String shortId);
 
+    boolean existsByShortId(String shortId);
+
     Optional<UrlEntity> findByLongUrl(String longUrl);
 
     List<UrlEntity> findTop1000ByOrderByClickCountDesc();

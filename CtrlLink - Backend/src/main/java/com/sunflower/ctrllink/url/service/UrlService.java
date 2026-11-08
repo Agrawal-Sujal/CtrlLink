@@ -32,6 +32,7 @@ public class UrlService {
 
     private final UrlRepository urlRepository;
     private final Base62IdEncoder idEncoder;
+    private final IdRangeService idRangeService;
     private final RedisTemplate<String, String> redisTemplate;
     private static final Logger log = LoggerFactory.getLogger(UrlService.class);
     private final GlobalStatsRepository globalStatsRepository;
@@ -41,6 +42,7 @@ public class UrlService {
 
     public UrlService(UrlRepository urlRepository,
                         Base62IdEncoder idEncoder,
+                        IdRangeService idRangeService,
                         RedisTemplate<String, String> redisTemplate,
                         GlobalStatsRepository globalStatsRepository,
                         MetadataService metadataService,
@@ -48,6 +50,7 @@ public class UrlService {
                         AnalyticsService analyticsService) {
         this.urlRepository = urlRepository;
         this.idEncoder = idEncoder;
+        this.idRangeService = idRangeService;
         this.redisTemplate = redisTemplate;
         this.globalStatsRepository = globalStatsRepository;
         this.metadataService = metadataService;
@@ -131,8 +134,12 @@ public class UrlService {
                 return ext;
             }
         }
-        Long nextId = urlRepository.getNextId();
-        String shortId = idEncoder.encode(nextId);
+        String shortId;
+        do {
+            Long nextId = idRangeService.getNextId();
+            shortId = idEncoder.encode(nextId);
+        } while (urlRepository.existsByShortId(shortId));
+
         UrlEntity entity = new UrlEntity();
         entity.setLongUrl(longUrl);
         entity.setShortId(shortId);
