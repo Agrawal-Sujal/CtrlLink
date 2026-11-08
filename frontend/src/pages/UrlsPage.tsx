@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { logger } from '../utils/logger';
 
 const log = logger.withModule('UrlsPage');
@@ -33,10 +34,11 @@ import { AlertBanner } from '../components/AlertBanner';
 import { UrlBarChart } from '../components/url/UrlBarChart';
 import { UrlSuccessModal } from '../components/url/UrlSuccessModal';
 import { UrlEditModal } from '../components/url/UrlEditModal';
+import { TagInput } from '../components/url/TagInput';
 import { UrlAnalyticsModal } from '../components/url/UrlAnalyticsModal';
 import { UrlPasswordModal } from '../components/url/UrlPasswordModal';
 import { urlApi, getErrorMessage } from '../services/api';
-import { ShortenResponse, UrlStatsResponse } from '../types/url';
+import { ShortenResponse, UrlStatsResponse, TagSummary } from '../types/url';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -46,6 +48,8 @@ export const UrlsPage: React.FC = () => {
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'public' | 'protected'>('all');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [allUserTags, setAllUserTags] = useState<TagSummary[]>([]);
   const [alert, setAlert] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';
     message: string;
@@ -59,7 +63,6 @@ export const UrlsPage: React.FC = () => {
   const [customAlias, setCustomAlias] = useState('');
   const [expiryDays, setExpiryDays] = useState<number | undefined>(undefined);
   const [password, setPassword] = useState('');
-  const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [useAutoTitle, setUseAutoTitle] = useState(false);
 
@@ -72,25 +75,43 @@ export const UrlsPage: React.FC = () => {
   // Copy feedback tracking
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchLinks();
+  const fetchTags = useCallback(async () => {
+    try {
+      const data = await urlApi.getUserTags();
+      setAllUserTags(data || []);
+    } catch (err: unknown) {
+      log.warn('Could not load user tags:', err);
+    }
   }, []);
 
-  const fetchLinks = async (search = searchQuery) => {
-    setIsLoadingLinks(true);
-    try {
-      const data = await urlApi.getMyLinks(search);
-      setLinks(data.content || []);
-    } catch (err: unknown) {
-      log.warn('Could not load links:', err);
-    } finally {
-      setIsLoadingLinks(false);
-    }
+  const fetchLinks = useCallback(
+    async (search = searchQuery, tag = selectedTag) => {
+      setIsLoadingLinks(true);
+      try {
+        const data = await urlApi.getMyLinks(search, 0, 100, tag || undefined);
+        setLinks(data.content || []);
+      } catch (err: unknown) {
+        log.warn('Could not load links:', err);
+      } finally {
+        setIsLoadingLinks(false);
+      }
+    },
+    [searchQuery, selectedTag]
+  );
+
+  useEffect(() => {
+    fetchLinks();
+    fetchTags();
+  }, [fetchLinks, fetchTags]);
+
+  const handleSelectTagFilter = (tag: string | null) => {
+    setSelectedTag(tag);
+    fetchLinks(searchQuery, tag);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchLinks(searchQuery);
+    fetchLinks(searchQuery, selectedTag);
   };
 
   const handlePasteClipboard = async () => {
@@ -102,18 +123,6 @@ export const UrlsPage: React.FC = () => {
     } catch {
       // Ignore if permission denied
     }
-  };
-
-  const handleAddTag = () => {
-    const clean = tagInput.trim().toLowerCase();
-    if (clean && !tags.includes(clean)) {
-      setTags([...tags, clean]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
   };
 
   const handleCreateShortUrl = async (e: React.FormEvent) => {
@@ -150,7 +159,9 @@ export const UrlsPage: React.FC = () => {
           spread: 75,
           origin: { y: 0.6 },
         });
-      } catch {}
+      } catch (e) {
+        log.debug('Confetti animation suppressed:', e);
+      }
 
       // Reset form
       setLongUrl('');
@@ -170,6 +181,7 @@ export const UrlsPage: React.FC = () => {
       });
 
       fetchLinks();
+      fetchTags();
     } catch (err: unknown) {
       setAlert({
         type: 'error',
@@ -188,6 +200,7 @@ export const UrlsPage: React.FC = () => {
     try {
       await urlApi.deleteUrl(shortId);
       setLinks((prev) => prev.filter((u) => u.shortId !== shortId));
+      fetchTags();
       setAlert({
         type: 'success',
         message: `Short URL /${shortId} deleted successfully.`,
@@ -412,49 +425,12 @@ export const UrlsPage: React.FC = () => {
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Link deactivates automatically after period</p>
                 </div>
 
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                    Tags &amp; Categorization
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Add tag (e.g. twitter, github, doc)"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                      className="flex-1 rounded-xl text-xs sm:text-sm py-2 px-3 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] focus:border-indigo-500 outline-hidden"
-                    />
-                    <Button type="button" size="sm" variant="secondary" onClick={handleAddTag}>
-                      Add Tag
-                    </Button>
-                  </div>
-
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {tags.map((t) => (
-                        <span
-                          key={t}
-                          className="inline-flex items-center gap-1 text-xs font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg border border-indigo-500/20"
-                        >
-                          <Tag className="w-3 h-3" />
-                          <span>{t}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(t)}
-                            className="p-0.5 rounded-full hover:bg-indigo-500/20 cursor-pointer"
-                          >
-                            &times;
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                <div className="sm:col-span-2">
+                  <TagInput
+                    selectedTags={tags}
+                    onChange={setTags}
+                    availableTags={allUserTags.map((t) => t.tag)}
+                  />
                 </div>
               </div>
             )}
@@ -584,6 +560,69 @@ export const UrlsPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Interactive Tag Filter Bar */}
+          {allUserTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 mr-1 shrink-0">
+                <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Tags:</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleSelectTagFilter(null)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  !selectedTag
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-zinc-100 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-white/[0.08]'
+                }`}
+              >
+                All Tags ({allUserTags.length})
+              </button>
+
+              {allUserTags.map((item) => (
+                <button
+                  key={item.tag}
+                  type="button"
+                  onClick={() => handleSelectTagFilter(selectedTag === item.tag ? null : item.tag)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedTag === item.tag
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-zinc-100 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08]'
+                  }`}
+                >
+                  <span>#{item.tag}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                      selectedTag === item.tag
+                        ? 'bg-white/20 text-white'
+                        : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+
+              {selectedTag && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTagFilter(null)}
+                  className="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 font-medium ml-1 cursor-pointer flex items-center gap-1"
+                >
+                  <span>&times; Clear filter</span>
+                </button>
+              )}
+
+              <Link
+                to="/tags"
+                className="ml-auto text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold"
+              >
+                <span>Manage all tags &rarr;</span>
+              </Link>
+            </div>
+          )}
+
           {/* Links List Table */}
           {isLoadingLinks ? (
             <div className="py-16 text-center text-zinc-500 text-sm">
@@ -709,12 +748,19 @@ export const UrlsPage: React.FC = () => {
 
                             {link.tags &&
                               link.tags.slice(0, 3).map((t) => (
-                                <span
+                                <button
                                   key={t}
-                                  className="text-[10px] text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-white/[0.08]"
+                                  type="button"
+                                  onClick={() => handleSelectTagFilter(selectedTag === t ? null : t)}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-md border transition-all cursor-pointer ${
+                                    selectedTag === t
+                                      ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
+                                      : 'text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-white/[0.08] hover:border-indigo-500/40 hover:text-indigo-600 dark:hover:text-indigo-400'
+                                  }`}
+                                  title={`Filter links by #${t}`}
                                 >
                                   #{t}
-                                </span>
+                                </button>
                               ))}
                           </div>
                         </td>
@@ -832,7 +878,10 @@ export const UrlsPage: React.FC = () => {
         url={editingUrl}
         isOpen={!!editingUrl}
         onClose={() => setEditingUrl(null)}
-        onUpdated={() => fetchLinks()}
+        onUpdated={() => {
+          fetchLinks();
+          fetchTags();
+        }}
       />
 
       {/* Pop-up: Deep Click Analytics Dialog Box */}

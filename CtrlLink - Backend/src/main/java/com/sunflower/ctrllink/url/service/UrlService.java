@@ -6,6 +6,7 @@ import com.sunflower.ctrllink.exception.BadRequestException;
 import com.sunflower.ctrllink.exception.ConflictException;
 import com.sunflower.ctrllink.exception.GoneException;
 import com.sunflower.ctrllink.exception.NotFoundException;
+import com.sunflower.ctrllink.url.dto.TagSummaryDto;
 import com.sunflower.ctrllink.url.dto.UrlStatsResponseDto;
 import com.sunflower.ctrllink.url.entity.UrlEntity;
 import com.sunflower.ctrllink.url.repository.UrlRepository;
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -279,51 +281,71 @@ public class UrlService {
                 entity.getTags());
     }
 
+    public List<TagSummaryDto> getUserTags(Long userId) {
+        List<Object[]> results = urlRepository.getTagCountsByUserId(userId);
+        return results.stream()
+                .map(row -> new TagSummaryDto((String) row[0], ((Number) row[1]).longValue()))
+                .collect(Collectors.toList());
+    }
+
     public Page<UrlStatsResponseDto> getMyLinks(Long userId, String search, Pageable pageable) {
+        return getMyLinks(userId, search, null, pageable);
+    }
+
+    public Page<UrlStatsResponseDto> getMyLinks(Long userId, String search, String tag, Pageable pageable) {
         Page<UrlEntity> entities;
-        if (search != null && !search.trim().isEmpty()) {
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+        boolean hasTag = tag != null && !tag.trim().isEmpty();
+
+        if (hasTag && hasSearch) {
+            entities = urlRepository.searchByUserIdAndTagAndKeyword(userId, tag.trim(), search.trim(), pageable);
+        } else if (hasTag) {
+            entities = urlRepository.findByUserIdAndTag(userId, tag.trim(), pageable);
+        } else if (hasSearch) {
             entities = urlRepository.searchByUserIdAndKeyword(userId, search.trim(), pageable);
         } else {
             entities = urlRepository.findByUserId(userId, pageable);
         }
-        return entities.map(entity -> {
-            long dbClicks = entity.getClickCount();
-            long redisClicks = 0;
-            Object redisClicksObj = redisTemplate.opsForHash().get("analytics:click_counts", entity.getShortId());
-            if (redisClicksObj != null) {
-                redisClicks = Long.parseLong(redisClicksObj.toString());
-            }
-            long totalClicks = dbClicks + redisClicks;
+        return entities.map(this::mapToStatsDto);
+    }
 
-            LocalDateTime lastAccessed = entity.getLastAccessedTime();
-            String redisTimestamp = redisTemplate.opsForValue().get("last_access:" + entity.getShortId());
-            if (redisTimestamp != null) {
-                try {
-                    LocalDateTime redisTime = LocalDateTime.parse(redisTimestamp);
-                    if (lastAccessed == null || redisTime.isAfter(lastAccessed)) {
-                        lastAccessed = redisTime;
-                    }
-                } catch (Exception e) {}
-            }
+    private UrlStatsResponseDto mapToStatsDto(UrlEntity entity) {
+        long dbClicks = entity.getClickCount();
+        long redisClicks = 0;
+        Object redisClicksObj = redisTemplate.opsForHash().get("analytics:click_counts", entity.getShortId());
+        if (redisClicksObj != null) {
+            redisClicks = Long.parseLong(redisClicksObj.toString());
+        }
+        long totalClicks = dbClicks + redisClicks;
 
-            return new UrlStatsResponseDto(
-                    entity.getShortId(),
-                    entity.getLongUrl(),
-                    totalClicks,
-                    lastAccessed,
-                    entity.getCreatedAt(),
-                    entity.getTitle(),
-                    entity.getPassword() != null,
-                    null, // Use /reveal-password endpoint instead
-                    new HashMap<>(), // No time-series
-                    new HashMap<>(), // No geo-distribution
-                    new HashMap<>(), // No referrers
-                    new HashMap<>(), // No devices
-                    entity.getOrderIndex(),
-                    entity.getCategory(),
-                    entity.getTags()
-            );
-        });
+        LocalDateTime lastAccessed = entity.getLastAccessedTime();
+        String redisTimestamp = redisTemplate.opsForValue().get("last_access:" + entity.getShortId());
+        if (redisTimestamp != null) {
+            try {
+                LocalDateTime redisTime = LocalDateTime.parse(redisTimestamp);
+                if (lastAccessed == null || redisTime.isAfter(lastAccessed)) {
+                    lastAccessed = redisTime;
+                }
+            } catch (Exception e) {}
+        }
+
+        return new UrlStatsResponseDto(
+                entity.getShortId(),
+                entity.getLongUrl(),
+                totalClicks,
+                lastAccessed,
+                entity.getCreatedAt(),
+                entity.getTitle(),
+                entity.getPassword() != null,
+                null, // Use /reveal-password endpoint instead
+                new HashMap<>(), // No time-series
+                new HashMap<>(), // No geo-distribution
+                new HashMap<>(), // No referrers
+                new HashMap<>(), // No devices
+                entity.getOrderIndex(),
+                entity.getCategory(),
+                entity.getTags()
+        );
     }
 
     @Transactional

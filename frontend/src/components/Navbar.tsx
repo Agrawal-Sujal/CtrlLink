@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Link2, LogOut, User as UserIcon } from 'lucide-react';
+import { Link2, LogOut, User as UserIcon, Tag } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
@@ -17,6 +17,7 @@ export const Navbar: React.FC = () => {
 
   const isProfileActive = location.pathname === '/profile';
   const isHomeActive = location.pathname === '/' || location.pathname === '/urls';
+  const isTagsActive = location.pathname === '/tags';
 
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/80 dark:bg-[#09090b]/85 border-b border-zinc-200/80 dark:border-white/[0.08] transition-colors duration-200">
@@ -49,6 +50,18 @@ export const Navbar: React.FC = () => {
               >
                 <Link2 className="w-3.5 h-3.5 -rotate-45" />
                 <span>Links &amp; Analytics</span>
+              </Link>
+
+              <Link
+                to="/tags"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+                  isTagsActive
+                    ? 'bg-zinc-100 dark:bg-zinc-850 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Tags</span>
               </Link>
 
               <Link

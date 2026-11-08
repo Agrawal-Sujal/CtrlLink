@@ -125,7 +125,7 @@ export const UrlBarChart: React.FC<UrlBarChartProps> = ({ urls, onSelectUrl }) =
             <Bar
               dataKey="clicks"
               radius={[8, 8, 0, 0]}
-              onClick={(entry: any) => {
+              onClick={(entry: { shortId?: string; payload?: { shortId?: string } }) => {
                 const targetId = entry?.shortId || entry?.payload?.shortId;
                 if (targetId) onSelectUrl?.(targetId);
               }}

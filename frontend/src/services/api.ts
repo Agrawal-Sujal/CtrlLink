@@ -18,6 +18,7 @@ import {
   PageResponse,
   UpdateMetadataRequest,
   ResolvePasswordResponse,
+  TagSummary,
 } from '../types/url';
 
 const log = logger.withModule('API');
@@ -158,15 +159,24 @@ export const urlApi = {
   getMyLinks: async (
     search?: string,
     page = 0,
-    size = 100
+    size = 100,
+    tag?: string
   ): Promise<PageResponse<UrlStatsResponse>> => {
     const params: Record<string, string | number> = { page, size };
     if (search && search.trim()) {
       params.search = search.trim();
     }
+    if (tag && tag.trim()) {
+      params.tag = tag.trim();
+    }
     const response = await apiClient.get<PageResponse<UrlStatsResponse>>('/api/v1/url/my-links', {
       params,
     });
+    return response.data;
+  },
+
+  getUserTags: async (): Promise<TagSummary[]> => {
+    const response = await apiClient.get<TagSummary[]>('/api/v1/url/tags');
     return response.data;
   },
 
