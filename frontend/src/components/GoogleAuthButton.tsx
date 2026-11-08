@@ -3,6 +3,9 @@ import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('GoogleAuth');
 
 interface GoogleAuthButtonProps {
   onSuccessCallback?: () => void;
@@ -28,7 +31,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       onSuccessCallback?.();
       navigate('/');
     } catch (err) {
-      console.error('Google login failed:', err);
+      log.error('Google login failed:', err);
       onErrorCallback?.(
         err instanceof Error ? err.message : 'Google authentication failed. Please try again.'
       );

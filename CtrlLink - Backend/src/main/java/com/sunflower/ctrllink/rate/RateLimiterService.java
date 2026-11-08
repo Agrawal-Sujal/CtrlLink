@@ -43,16 +43,17 @@ public class RateLimiterService {
             );
 
             if (count != null && count > limit) {
-                log.warn("RATE LIMIT TRIGGERED key={}", key);
+                log.warn("Rate limit exceeded for key={}: count={}/{} (window={}s)", key, count, limit, windowSeconds);
                 throw new TooManyRequestsException("Rate limit exceeded. Try again later.");
             }
+            log.trace("Rate limit check passed for key={}: count={}/{}", key, count, limit);
         } catch (TooManyRequestsException e) {
             throw e; // Always respect the rate limit if Redis is working
         } catch (Exception e) {
             // MAANG Strategy: Fail-Open
             // If Redis is down, we log the error but allow the request to proceed.
             // Better to have no rate limiting for a few minutes than a total system outage.
-            log.error("RATE LIMITER ERROR (FAIL-OPEN): " + e.getMessage());
+            log.error("Rate limiter Redis failure (fail-open) for key={}: {}", key, e.getMessage(), e);
         }
     }
 }

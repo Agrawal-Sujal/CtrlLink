@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, LoginRequest, RegisterRequest } from '../types/auth';
 import { authApi, profileApi } from '../services/api';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('Auth');
 
 interface AuthContextType {
   user: User | null;
@@ -42,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return updated;
       });
     } catch (e) {
-      console.warn('Could not refresh profile:', e);
+      log.warn('Could not refresh profile:', e);
     }
   }, []);
 
@@ -79,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
       }
     } catch (e) {
-      console.error('Failed to parse stored user data:', e);
+      log.error('Failed to parse stored user data:', e);
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } finally {

@@ -102,19 +102,22 @@ public class UrlController {
     @PostMapping("/shorten")
     public ShortenResponseDto shorten(@Valid @RequestBody ShortenRequestDto request, HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
-        log.info("IP : {}", ip);
+        Long userId = getCurrentUserId();
+        log.info("Shorten request: longUrl={}, customAlias={}, userId={}, ip={}",
+                request.getLongUrl(), request.getCustomAlias(), userId, ip);
 
         rateLimiterService.checkLimit("rate:shorten:" + ip, 10, 60);
 
-        Long userId = getCurrentUserId();
         if (userId != null) {
             UserEntity user = userRepository.findById(userId).orElse(null);
             if (user != null && !user.isEmailVerified() && !"GOOGLE".equals(user.getAuthProvider())) {
+                log.warn("Unverified user id={} attempted to shorten link", userId);
                 throw new ForbiddenException("You must verify your email address before you can create links.");
             }
         }
 
         UrlEntity entity = urlService.shortenUrl(request.getLongUrl(), request.getCustomAlias(), request.getExpiryDays(), userId, request.getTitle(), request.getPassword(), request.isUseAutoTitle(), request.getTags());
+        log.info("URL shortened successfully: shortId={}, longUrl={}", entity.getShortId(), entity.getLongUrl());
         return new ShortenResponseDto(
                 entity.getShortId(),
                 baseUrl + "/" + entity.getShortId(),
@@ -135,6 +138,7 @@ public class UrlController {
             @RequestParam(required = false) String search,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long userId = getUserIdFromPrincipal(principal);
+        log.debug("Fetching user links: userId={} [search={}, page={}]", userId, search, pageable.getPageNumber());
         return urlService.getMyLinks(userId, search, pageable);
     }
 
@@ -144,6 +148,7 @@ public class UrlController {
             @AuthenticationPrincipal Object principal,
             @RequestBody ReorderRequestDto request) {
         Long userId = getUserIdFromPrincipal(principal);
+        log.info("Reordering {} links for userId={}", request.getShortIds().size(), userId);
         urlService.reorderLinks(userId, request.getShortIds());
         return ResponseEntity.ok().build();
     }
@@ -159,13 +164,14 @@ public class UrlController {
             case "7d" -> 604800000L;
             default -> 0L; // All time
         };
-        
+        log.debug("Stats query for shortId={} [range={}]", shortId, range);
         return urlService.getStats(shortId, lookbackMs);
     }
 
     @Operation(summary = "Delete a short URL", description = "Permanently removes a short link from the system.", security = @SecurityRequirement(name = "Bearer Authentication"))
     @DeleteMapping("/{shortId}")
     public ResponseEntity<?> deleteUrl(@PathVariable String shortId, @AuthenticationPrincipal Long userId) {
+        log.info("Deleting URL shortId={} by userId={}", shortId, userId);
         urlService.deleteUrl(shortId, userId);
         return ResponseEntity.ok(Map.of("message", "URL deleted successfully"));
     }
@@ -176,6 +182,7 @@ public class UrlController {
         if (shortIds == null || shortIds.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "No IDs provided"));
         }
+        log.info("Bulk deleting {} URLs by userId={}", shortIds.size(), userId);
         urlService.deleteUrls(shortIds, userId);
         return ResponseEntity.ok(Map.of("message", "URLs deleted successfully", "count", shortIds.size()));
     }
@@ -188,7 +195,7 @@ public class UrlController {
         
         String title = request.get("title");
         String password = request.get("password");
-        
+        log.info("Updating link metadata for shortId={} by userId={}", shortId, userId);
         urlService.updateUrlMetadata(shortId, userId, title, password);
     }
 
@@ -199,6 +206,7 @@ public class UrlController {
         if (userId == null) throw new BadRequestException("Authentication required");
         
         java.util.Set<String> tags = request.get("tags");
+        log.info("Updating tags for shortId={} by userId={}: tags={}", shortId, userId, tags);
         urlService.updateTags(shortId, userId, tags);
     }
 
@@ -216,6 +224,7 @@ public class UrlController {
     @PostMapping("/resolve/{shortId}")
     public ResponseEntity<?> resolvePassword(@PathVariable String shortId, @RequestBody Map<String, String> body, HttpServletRequest request) {
         String password = body.get("password");
+        log.debug("Password verification attempt for shortId={}", shortId);
         UrlEntity entity = urlRepository.findByShortId(shortId)
                 .orElseThrow(() -> new NotFoundException("URL not found"));
 

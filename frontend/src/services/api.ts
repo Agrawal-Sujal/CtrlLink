@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { logger } from '../utils/logger';
 import {
   AuthResponse,
   LoginRequest,
@@ -19,6 +20,7 @@ import {
   ResolvePasswordResponse,
 } from '../types/url';
 
+const log = logger.withModule('API');
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export const apiClient = axios.create({
@@ -29,34 +31,55 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor to attach JWT token
+// Request interceptor to attach JWT token and logging
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('ctrllink_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    log.debug(`--> ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    log.error('Request configuration error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for logging and correlation
+apiClient.interceptors.response.use(
+  (response) => {
+    const reqId = response.headers['x-request-id'] || 'none';
+    log.debug(`<-- ${response.status} ${response.config.url} [req=${reqId}]`);
+    return response;
+  },
+  (error) => {
+    const reqId = error.response?.headers?.['x-request-id'] || 'none';
+    log.error(`<-- HTTP ${error.response?.status || 'ERR'} ${error.config?.url || 'unknown'} [req=${reqId}]:`, error.message);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor for unified error formatting
 export const getErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorResponse | string>;
+    const reqId = axiosError.response?.headers?.['x-request-id'];
+    const suffix = reqId ? ` (Request ID: ${reqId})` : '';
+
     if (axiosError.response?.data) {
       if (typeof axiosError.response.data === 'string') {
-        return axiosError.response.data;
+        return axiosError.response.data + suffix;
       }
       if (axiosError.response.data.message) {
-        return axiosError.response.data.message;
+        return axiosError.response.data.message + suffix;
       }
     }
     if (axiosError.message === 'Network Error') {
-      return 'Unable to connect to CtrlLink server. Please ensure the backend is running.';
+      return 'Unable to connect to CtrlLink server. Please ensure the backend is running.' + suffix;
     }
-    return axiosError.message || 'An unexpected error occurred.';
+    return (axiosError.message || 'An unexpected error occurred.') + suffix;
   }
   if (error instanceof Error) {
     return error.message;
@@ -98,7 +121,7 @@ export const authApi = {
     try {
       await apiClient.post('/api/v1/auth/logout');
     } catch (e) {
-      console.warn('Backend logout warning:', e);
+      log.warn('Backend logout warning:', e);
     }
   },
 };

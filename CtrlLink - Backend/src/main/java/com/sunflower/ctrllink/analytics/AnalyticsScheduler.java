@@ -37,19 +37,23 @@ public class AnalyticsScheduler {
 
         // Distributed lock — only ONE instance runs this at a time
         String lockValue = UUID.randomUUID().toString();
+        log.debug("Attempting to acquire distributed lock '{}' with token={}", LOCK_KEY, lockValue);
+
         Boolean locked = redisTemplate.opsForValue()
                 .setIfAbsent(LOCK_KEY, lockValue, 25, TimeUnit.SECONDS);
 
-        log.info("syncClicksToDatabase locked={}", locked);
-
         if (locked == null || !locked) {
-            log.debug("Analytics sync skipped — another instance holds the lock");
+            log.debug("Distributed lock '{}' held by another node or busy. Skipping sync.", LOCK_KEY);
             return;
         }
+
+        log.info("Acquired distributed lock '{}' (token={}, TTL=25s)", LOCK_KEY, lockValue);
+        long startTime = System.currentTimeMillis();
 
         try {
             Boolean exists = redisTemplate.hasKey(SOURCE_KEY);
             if (exists == null || !exists) {
+                log.debug("No pending click counts found at '{}'", SOURCE_KEY);
                 return;
             }
 
@@ -58,7 +62,7 @@ public class AnalyticsScheduler {
             redisTemplate.rename(SOURCE_KEY, processingKey);
 
             Map<Object, Object> counters = redisTemplate.opsForHash().entries(processingKey);
-            log.info("ANALYTICS SYNC started size={}", counters.size());
+            log.info("ANALYTICS SYNC started: found {} items to aggregate", counters.size());
 
             long totalBatchClicks = 0;
             for (Map.Entry<Object, Object> entry : counters.entrySet()) {
@@ -72,14 +76,22 @@ public class AnalyticsScheduler {
                 globalStatsRepository.incrementClicks(totalBatchClicks);
             }
 
-            log.info("ANALYTICS SYNC completed processed={}", counters.size());
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("ANALYTICS SYNC completed: processed {} links, {} total clicks in {}ms",
+                    counters.size(), totalBatchClicks, duration);
             redisTemplate.delete(processingKey);
 
+        } catch (Exception e) {
+            log.error("Exception during analytics sync execution under lock {}: {}", lockValue, e.getMessage(), e);
         } finally {
             // Only delete lock if WE own it
             String currentLock = redisTemplate.opsForValue().get(LOCK_KEY);
             if (lockValue.equals(currentLock)) {
                 redisTemplate.delete(LOCK_KEY);
+                log.info("Released distributed lock '{}' (token={})", LOCK_KEY, lockValue);
+            } else {
+                log.warn("Lock '{}' expired or was overwritten before release (current={}, expected={})",
+                        LOCK_KEY, currentLock, lockValue);
             }
         }
     }

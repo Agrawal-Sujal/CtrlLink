@@ -81,15 +81,18 @@ public class UrlService {
         if (customAlias != null && !customAlias.isBlank()) {
             String normalized = customAlias.toLowerCase().trim();
             validateAlias(normalized);
+            log.info("Processing custom alias request: '{}' for userId={}", normalized, userId);
             Optional<UrlEntity> existing = urlRepository.findByShortId(normalized);
             if (existing.isPresent()) {
                 if (!existing.get().getLongUrl().equals(longUrl)) {
+                    log.warn("Custom alias collision: '{}' already belongs to a different URL", normalized);
                     throw new ConflictException("Alias '" + normalized + "' is already in use by a different URL");
                 }
                 UrlEntity ext = existing.get();
                 if (ext.getCategory() == null || ext.getCategory().isBlank() || "GENERAL".equals(ext.getCategory())) {
                     metadataService.fetchAndProcessMetadataAsync(ext.getShortId(), longUrl, useAutoTitle);
                 }
+                log.debug("Reusing existing custom alias entry: '{}'", normalized);
                 return ext;
             }
             UrlEntity entity = new UrlEntity();
@@ -115,6 +118,7 @@ public class UrlService {
                     TimeUnit.SECONDS);
             // Invalidate redirect Hash cache so it gets rebuilt on next hit
             redisTemplate.delete("url:entity:" + normalized);
+            log.info("Saved and cached new custom alias: '{}'", normalized);
 
             // Trigger Unified Smart AI Fetching (Async) - Always for categorization
             metadataService.fetchAndProcessMetadataAsync(normalized, longUrl, useAutoTitle);
@@ -140,6 +144,8 @@ public class UrlService {
             shortId = idEncoder.encode(nextId);
         } while (urlRepository.existsByShortId(shortId));
 
+        log.info("Generated shortId='{}' for userId={}", shortId, userId);
+
         UrlEntity entity = new UrlEntity();
         entity.setLongUrl(longUrl);
         entity.setShortId(shortId);
@@ -162,6 +168,7 @@ public class UrlService {
                 getTtlSeconds(entity.getExpiryTime()), TimeUnit.SECONDS);
         // Invalidate redirect Hash cache so it gets rebuilt on next hit
         redisTemplate.delete("url:entity:" + shortId);
+        log.debug("Saved and cached generated shortId='{}'", shortId);
 
         // Trigger Unified Smart AI Fetching (Async) - Always for categorization
         metadataService.fetchAndProcessMetadataAsync(shortId, longUrl, useAutoTitle);
@@ -321,15 +328,18 @@ public class UrlService {
 
     @Transactional
     public void deleteUrl(String shortId, Long userId) {
+        log.info("Deleting URL shortId='{}' for userId={}", shortId, userId);
         UrlEntity entity = urlRepository.findByShortIdAndUserId(shortId, userId)
                 .orElseThrow(() -> new NotFoundException("URL not found or not owned by you"));
         redisTemplate.delete("url:" + shortId);
         redisTemplate.delete("url:entity:" + shortId);
         urlRepository.delete(entity);
+        log.debug("Successfully purged shortId='{}' from DB and Redis caches", shortId);
     }
 
     @Transactional
     public void deleteUrls(List<String> shortIds, Long userId) {
+        log.info("Bulk deleting {} URLs for userId={}", shortIds.size(), userId);
         for (String shortId : shortIds) {
             urlRepository.findByShortIdAndUserId(shortId, userId).ifPresent(entity -> {
                 redisTemplate.delete("url:" + shortId);
@@ -337,6 +347,7 @@ public class UrlService {
                 urlRepository.delete(entity);
             });
         }
+        log.debug("Completed bulk delete for userId={}", userId);
     }
 
     public void incrementClickCount(String shortId) {
@@ -346,6 +357,7 @@ public class UrlService {
 
     @Transactional
     public void reorderLinks(Long userId, List<String> shortIds) {
+        log.debug("Persisting reordered link sequence (count={}) for userId={}", shortIds.size(), userId);
         for (int i = 0; i < shortIds.size(); i++) {
             urlRepository.updateOrderIndex(shortIds.get(i), userId, i);
         }

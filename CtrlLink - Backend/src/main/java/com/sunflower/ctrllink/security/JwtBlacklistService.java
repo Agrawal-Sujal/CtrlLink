@@ -1,5 +1,7 @@
 package com.sunflower.ctrllink.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import java.util.concurrent.TimeUnit;
@@ -7,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class JwtBlacklistService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtBlacklistService.class);
     private final StringRedisTemplate redisTemplate;
     private static final String BLACKLIST_PREFIX = "jwt:revoked:";
 
@@ -22,6 +25,7 @@ public class JwtBlacklistService {
         if (remainingTimeMs > 0) {
             String key = BLACKLIST_PREFIX + token;
             redisTemplate.opsForValue().set(key, "revoked", remainingTimeMs, TimeUnit.MILLISECONDS);
+            log.info("Token blacklisted with TTL={}ms", remainingTimeMs);
         }
     }
 
@@ -30,6 +34,10 @@ public class JwtBlacklistService {
      */
     public boolean isTokenBlacklisted(String token) {
         Boolean hasKey = redisTemplate.hasKey(BLACKLIST_PREFIX + token);
-        return hasKey != null && hasKey;
+        boolean isBlacklisted = hasKey != null && hasKey;
+        if (isBlacklisted) {
+            log.debug("Token check: token is currently blacklisted");
+        }
+        return isBlacklisted;
     }
 }

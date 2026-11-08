@@ -10,6 +10,9 @@ import { PasswordStrength } from '../components/PasswordStrength';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../services/api';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('RegisterPage');
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,7 +65,7 @@ export const RegisterPage: React.FC = () => {
           origin: { y: 0.6 },
         });
       } catch (e) {
-        console.error('Confetti error:', e);
+        log.error('Confetti error:', e);
       }
 
       setRegisteredSuccess(true);

@@ -43,6 +43,7 @@ public class MetadataService {
 
     public java.util.Map<String, String> fetchMetadata(String longUrl) {
         java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        log.debug("Fetching web metadata for longUrl={}", longUrl);
         try {
             Document doc = Jsoup.connect(longUrl)
                     .timeout(5000)
@@ -57,6 +58,7 @@ public class MetadataService {
             } else {
                 metadata.put("description", "");
             }
+            log.debug("Fetched metadata for {}: title='{}'", longUrl, metadata.get("title"));
         } catch (Exception e) {
             log.warn("Could not fetch metadata for {}: {}", longUrl, e.getMessage());
             metadata.put("title", "");

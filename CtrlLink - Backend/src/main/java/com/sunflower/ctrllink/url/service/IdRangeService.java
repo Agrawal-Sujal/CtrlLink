@@ -35,12 +35,18 @@ public class IdRangeService {
         lock.lock();
         try {
             if (currentId > maxId) {
+                log.info("In-memory ID buffer exhausted (currentId={}, maxId={}). Fetching batch size={} from DB",
+                        currentId, maxId, batchSize);
+                long start = System.currentTimeMillis();
                 long startId = idRangeAllocator.allocateRange(ALLOCATOR_NAME, batchSize);
                 currentId = startId;
                 maxId = startId + batchSize - 1;
-                log.info("Allocated new in-memory ID batch: [{}, {}]", currentId, maxId);
+                log.info("Allocated new in-memory ID batch: [{}, {}] in {}ms",
+                        currentId, maxId, (System.currentTimeMillis() - start));
             }
-            return currentId++;
+            long dispensed = currentId++;
+            log.trace("Dispensed next unique ID={} (remainingInBuffer={})", dispensed, (maxId - currentId + 1));
+            return dispensed;
         } finally {
             lock.unlock();
         }

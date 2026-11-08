@@ -9,6 +9,8 @@ import com.sunflower.ctrllink.url.service.UrlService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Redirect & Previews", description = "Endpoints for handling short URL redirects and social media rich previews (OG tags)")
 public class RedirectController {
 
+    private static final Logger log = LoggerFactory.getLogger(RedirectController.class);
     private final UrlService urlService;
     private final UrlRepository urlRepository;
     private final AnalyticsService analyticsService;
@@ -56,6 +59,7 @@ public class RedirectController {
     @GetMapping("/{shortId}")
     public ResponseEntity<?> redirect(@PathVariable String shortId, HttpServletRequest request) {
 
+        log.debug("Redirect requested for shortId={} [ip={}]", shortId, getClientIp(request));
         String cacheKey = "url:entity:" + shortId;
         Map<Object, Object> cached = redisTemplate.opsForHash().entries(cacheKey);
 
@@ -65,6 +69,7 @@ public class RedirectController {
 
         if (!cached.isEmpty()) {
             // Cache HIT — zero DB hit on the hot path
+            log.trace("Redirect cache HIT for shortId={}", shortId);
             longUrl     = (String) cached.get("longUrl");
             hasPassword = "true".equals(cached.get("hasPassword"));
             title       = (String) cached.get("title");
@@ -73,14 +78,17 @@ public class RedirectController {
             String expiryStr = (String) cached.get("expiryTime");
             if (expiryStr != null && !expiryStr.isEmpty()
                     && LocalDateTime.parse(expiryStr).isBefore(LocalDateTime.now())) {
+                log.info("Redirect rejected: shortId={} has expired", shortId);
                 throw new GoneException("Short URL has expired");
             }
         } else {
             // Cache MISS — hit DB, then populate cache for next time
+            log.debug("Redirect cache MISS for shortId={}, querying database", shortId);
             UrlEntity entity = urlRepository.findByShortId(shortId)
                     .orElseThrow(() -> new NotFoundException("URL not found"));
 
             if (entity.getExpiryTime() != null && entity.getExpiryTime().isBefore(LocalDateTime.now())) {
+                log.info("Redirect rejected: shortId={} has expired (from DB check)", shortId);
                 throw new GoneException("Short URL has expired");
             }
 
@@ -95,6 +103,7 @@ public class RedirectController {
         // Social Bot Detection for Rich Previews (WhatsApp, Twitter, FB, etc.)
         String userAgent = request.getHeader("User-Agent");
         if (isSocialBot(userAgent)) {
+            log.info("Social bot detected for shortId={}: ua={}", shortId, userAgent);
             return ResponseEntity.ok()
                     .header("Content-Type", "text/html; charset=UTF-8")
                     .body(generateSocialHtml(title, longUrl, shortId, request));
@@ -102,6 +111,7 @@ public class RedirectController {
 
         // If password is set, don't redirect yet. Tell the frontend to ask for a password.
         if (hasPassword) {
+            log.debug("Redirect intercepted: password required for shortId={}", shortId);
             // Redirect to the frontend password challenge page
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(frontendUrl + "/p/" + shortId))
@@ -113,6 +123,7 @@ public class RedirectController {
         analyticsService.recordClick(shortId, getClientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer"));
 
         // No password -> Proceed with normal redirect (Fix #3: use longUrl directly, no redundant getLongUrl call)
+        log.info("Redirecting shortId={} -> target={}", shortId, longUrl);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(longUrl))
                 .build();

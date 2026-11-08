@@ -1,5 +1,7 @@
 package com.sunflower.ctrllink.analytics.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class AnalyticsService {
+    private static final Logger log = LoggerFactory.getLogger(AnalyticsService.class);
     private final StringRedisTemplate redisTemplate;
     private final RestTemplate restTemplate;
     
@@ -36,6 +39,7 @@ public class AnalyticsService {
      */
     @Async("analyticsExecutor")
     public void recordClick(String shortId, String ipAddress, String userAgent, String referer) {
+        log.debug("Async click processing: shortId={} ip={} ua={} referer={}", shortId, ipAddress, userAgent, referer);
         String key = CLICK_KEY_PREFIX + shortId;
         long timestamp = System.currentTimeMillis();
         
@@ -98,7 +102,10 @@ public class AnalyticsService {
         // 1. Check Redis Cache First
         String cacheKey = GEO_CACHE_PREFIX + cleanIp;
         String cachedCountry = redisTemplate.opsForValue().get(cacheKey);
-        if (cachedCountry != null) return cachedCountry;
+        if (cachedCountry != null) {
+            log.trace("Geo-IP cache HIT: {} -> {}", cleanIp, cachedCountry);
+            return cachedCountry;
+        }
 
         // 2. External API Lookup (ipapi.co) - Switch to HTTPS for reliability
         try {
@@ -109,10 +116,11 @@ public class AnalyticsService {
                 String country = (String) response.get("country_name");
                 // Cache the result for 7 days
                 redisTemplate.opsForValue().set(cacheKey, country, 7, TimeUnit.DAYS);
+                log.debug("Geo-IP resolved via API: {} -> {}", cleanIp, country);
                 return country;
             }
         } catch (Exception e) {
-            System.err.println("Geo-IP Lookup ERROR for " + cleanIp + ": " + e.getMessage());
+            log.warn("Geo-IP Lookup ERROR for {}: {}", cleanIp, e.getMessage());
         }
         return "Unknown";
     }

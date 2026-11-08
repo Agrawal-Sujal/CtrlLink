@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
+
+const log = logger.withModule('UrlsPage');
 import {
   Link2,
   Plus,
@@ -79,7 +82,7 @@ export const UrlsPage: React.FC = () => {
       const data = await urlApi.getMyLinks(search);
       setLinks(data.content || []);
     } catch (err: unknown) {
-      console.warn('Could not load links:', err);
+      log.warn('Could not load links:', err);
     } finally {
       setIsLoadingLinks(false);
     }
