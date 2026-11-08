@@ -66,3 +66,9 @@ export interface TagSummary {
   count: number;
 }
 
+export interface PublicStatsResponse {
+  totalLinks: number;
+  totalUsers: number;
+  totalClicks: number;
+}
+

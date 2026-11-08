@@ -1,5 +1,6 @@
 package com.sunflower.ctrllink.url.controller;
 
+import com.sunflower.ctrllink.analytics.PlatformStatsInitializer;
 import com.sunflower.ctrllink.analytics.entity.GlobalStatsEntity;
 import com.sunflower.ctrllink.analytics.repository.GlobalStatsRepository;
 import com.sunflower.ctrllink.analytics.service.AnalyticsService;
@@ -56,7 +57,7 @@ public class UrlController {
     private final EncryptionUtils encryptionUtils;
     private final AnalyticsService analyticsService;
     private final RateLimiterService rateLimiterService;
-
+    private final PlatformStatsInitializer platformStatsInitializer;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -66,7 +67,9 @@ public class UrlController {
                          PasswordEncoder passwordEncoder,
                          GlobalStatsRepository globalStatsRepository,
                          EncryptionUtils encryptionUtils,
-                         AnalyticsService analyticsService,RateLimiterService rateLimiterService) {
+                         AnalyticsService analyticsService,
+                         RateLimiterService rateLimiterService,
+                         PlatformStatsInitializer platformStatsInitializer) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
         this.userRepository = userRepository;
@@ -75,6 +78,7 @@ public class UrlController {
         this.encryptionUtils = encryptionUtils;
         this.analyticsService = analyticsService;
         this.rateLimiterService = rateLimiterService;
+        this.platformStatsInitializer = platformStatsInitializer;
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -223,7 +227,8 @@ public class UrlController {
     @Operation(summary = "Get public system stats", description = "Returns total links, users, and clicks for landing pages.")
     @GetMapping("/stats/public")
     public ResponseEntity<PublicStatsResponse> getPublicStats() {
-        GlobalStatsEntity stats = globalStatsRepository.getStats();
+        GlobalStatsEntity stats = globalStatsRepository.findById(1L)
+                .orElseGet(platformStatsInitializer::initializeOrReconcileStats);
         return ResponseEntity.ok(new PublicStatsResponse(
                 stats.getTotalLinks(),
                 stats.getTotalUsers(),

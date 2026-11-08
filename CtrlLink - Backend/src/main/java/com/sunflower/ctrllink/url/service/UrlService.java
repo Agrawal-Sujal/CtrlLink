@@ -113,6 +113,7 @@ public class UrlService {
                 entity.setPassword(encryptionUtils.encrypt(password));
             }
             UrlEntity saved = urlRepository.save(entity);
+            globalStatsRepository.incrementLinks();
             redisTemplate.opsForValue().set(
                     "url:" + normalized,
                     longUrl,
@@ -356,18 +357,25 @@ public class UrlService {
         redisTemplate.delete("url:" + shortId);
         redisTemplate.delete("url:entity:" + shortId);
         urlRepository.delete(entity);
+        globalStatsRepository.decrementLinks(1);
         log.debug("Successfully purged shortId='{}' from DB and Redis caches", shortId);
     }
 
     @Transactional
     public void deleteUrls(List<String> shortIds, Long userId) {
         log.info("Bulk deleting {} URLs for userId={}", shortIds.size(), userId);
+        long deletedCount = 0;
         for (String shortId : shortIds) {
-            urlRepository.findByShortIdAndUserId(shortId, userId).ifPresent(entity -> {
+            Optional<UrlEntity> opt = urlRepository.findByShortIdAndUserId(shortId, userId);
+            if (opt.isPresent()) {
                 redisTemplate.delete("url:" + shortId);
                 redisTemplate.delete("url:entity:" + shortId);
-                urlRepository.delete(entity);
-            });
+                urlRepository.delete(opt.get());
+                deletedCount++;
+            }
+        }
+        if (deletedCount > 0) {
+            globalStatsRepository.decrementLinks(deletedCount);
         }
         log.debug("Completed bulk delete for userId={}", userId);
     }
