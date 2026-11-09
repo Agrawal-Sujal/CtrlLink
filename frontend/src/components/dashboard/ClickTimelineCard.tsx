@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -8,68 +8,48 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { UrlStatsResponse } from '../../types/url';
 import { useTheme } from '../../context/ThemeContext';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
 interface ClickTimelineCardProps {
-  urls: UrlStatsResponse[];
+  timeSeriesData: Record<string, number>;
+  range: '7d' | '30d' | '90d';
+  onRangeChange: (r: '7d' | '30d' | '90d') => void;
+  isLoading?: boolean;
 }
 
-export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({ urls }) => {
+export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({
+  timeSeriesData,
+  range,
+  onRangeChange,
+  isLoading = false,
+}) => {
   const { resolvedTheme } = useTheme();
-  const [range, setRange] = useState<'7d' | '30d' | '90d'>('7d');
 
-  // Prepare time-series data
-  const chartData = useMemo(() => {
-    // If urls have real timeSeries entries, aggregate them
-    const dateCounts: Record<string, number> = {};
-    let hasRealData = false;
+  // Prepare time-series data using ONLY real backend timeSeriesData
+  const daysCount = range === '7d' ? 7 : range === '30d' ? 30 : 90;
+  const now = new Date();
+  const chartData: { date: string; iso: string; clicks: number }[] = [];
 
-    urls.forEach((u) => {
-      if (u.timeSeries) {
-        Object.entries(u.timeSeries).forEach(([dateStr, count]) => {
-          hasRealData = true;
-          dateCounts[dateStr] = (dateCounts[dateStr] || 0) + count;
-        });
-      }
+  for (let i = daysCount - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().split('T')[0];
+    const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+    const dayNum = d.getDate();
+    const label = `${monthName} ${dayNum}`;
+
+    // Purely real data from backend response:
+    const clicks = timeSeriesData[iso] || 0;
+
+    chartData.push({
+      date: label,
+      iso,
+      clicks,
     });
+  }
 
-    const daysCount = range === '7d' ? 7 : range === '30d' ? 30 : 90;
-    const now = new Date();
-    const result = [];
-
-    // Realistic baseline values matching screenshot curve if no real time-series logged yet
-    // In screenshot: Nov 3: ~300, Nov 4: ~450, Nov 5: ~480, Nov 6: ~700, Nov 7: ~1000, Nov 8: ~1450, Nov 9: ~1980
-    const mockBaseline = [280, 420, 490, 710, 1020, 1460, 1980];
-
-    for (let i = daysCount - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const iso = d.toISOString().split('T')[0];
-      const monthName = d.toLocaleDateString('en-US', { month: 'short' });
-      const dayNum = d.getDate();
-      const label = `${monthName} ${dayNum}`;
-
-      let clicks = 0;
-      if (hasRealData && dateCounts[iso] !== undefined) {
-        clicks = dateCounts[iso];
-      } else if (range === '7d') {
-        const mockIdx = 6 - i;
-        clicks = mockBaseline[mockIdx] ?? Math.floor(Math.random() * 500 + 500);
-      } else {
-        clicks = Math.floor(Math.sin((i / daysCount) * Math.PI) * 1200 + 600);
-      }
-
-      result.push({
-        date: label,
-        iso,
-        clicks,
-      });
-    }
-
-    return result;
-  }, [urls, range]);
+  const totalClicksInPeriod = chartData.reduce((acc, c) => acc + c.clicks, 0);
 
   const isDark = resolvedTheme === 'dark';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9';
@@ -84,15 +64,20 @@ export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({ urls }) =>
     <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center justify-between pb-4">
-        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-          Click Timeline
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+            Click Timeline
+          </h3>
+          {isLoading && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+          )}
+        </div>
 
         {/* Range Dropdown */}
         <div className="relative">
           <select
             value={range}
-            onChange={(e) => setRange(e.target.value as '7d' | '30d' | '90d')}
+            onChange={(e) => onRangeChange(e.target.value as '7d' | '30d' | '90d')}
             className="appearance-none pl-3 pr-7 py-1 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer"
           >
             <option value="7d">Last 7 Days</option>
@@ -103,8 +88,8 @@ export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({ urls }) =>
         </div>
       </div>
 
-      {/* Recharts Area Chart */}
-      <div className="w-full h-56 pt-2">
+      {/* Chart */}
+      <div className="w-full h-56 pt-2 relative">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
@@ -135,6 +120,7 @@ export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({ urls }) =>
               tickLine={false}
               axisLine={false}
               tickFormatter={formatYAxis}
+              allowDecimals={false}
             />
             <Tooltip
               content={({ active, payload }) => {
@@ -169,6 +155,14 @@ export const ClickTimelineCard: React.FC<ClickTimelineCardProps> = ({ urls }) =>
             />
           </AreaChart>
         </ResponsiveContainer>
+
+        {totalClicksInPeriod === 0 && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-slate-900/80 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-slate-800">
+              0 clicks recorded in this period
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

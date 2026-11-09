@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { logger } from '../utils/logger';
 import confetti from 'canvas-confetti';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
@@ -22,10 +22,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 export const UrlsPage: React.FC = () => {
   const { user } = useAuth();
 
-  // Links & Tags state
+  // Links & Tags state from backend
   const [links, setLinks] = useState<UrlStatsResponse[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [allUserTags, setAllUserTags] = useState<TagSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+  const pageSize = 10;
+
+  // Timeline analytics state fetched from backend
+  const [timelineRange, setTimelineRange] = useState<'7d' | '30d' | '90d'>('7d');
+  const [timeSeriesData, setTimeSeriesData] = useState<Record<string, number>>({});
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
+
+  // Global alert
   const [alert, setAlert] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';
     message: string;
@@ -43,6 +55,7 @@ export const UrlsPage: React.FC = () => {
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // 1. Fetch user tags from backend
   const fetchTags = useCallback(async () => {
     try {
       const data = await urlApi.getUserTags();
@@ -52,16 +65,63 @@ export const UrlsPage: React.FC = () => {
     }
   }, []);
 
+  // 2. Fetch user links from backend with pagination, search, and tag filters
   const fetchLinks = useCallback(
-    async (search = searchQuery) => {
+    async (
+      search = searchQuery,
+      tag = selectedTag,
+      page = currentPage
+    ) => {
+      setIsLoadingLinks(true);
       try {
-        const data = await urlApi.getMyLinks(search, 0, 100);
+        const tagFilter = tag !== 'all' ? tag : undefined;
+        const data = await urlApi.getMyLinks(search, page - 1, pageSize, tagFilter);
         setLinks(data.content || []);
+        setTotalCount(data.totalElements ?? (data.content ? data.content.length : 0));
       } catch (err: unknown) {
         log.warn('Could not load links:', err);
+      } finally {
+        setIsLoadingLinks(false);
       }
     },
-    [searchQuery]
+    [searchQuery, selectedTag, currentPage, pageSize]
+  );
+
+  // 3. Fetch real timeline analytics from backend for links with clicks
+  const fetchTimelineData = useCallback(
+    async (currentLinks: UrlStatsResponse[], range: '7d' | '30d' | '90d') => {
+      // Find links that have clicks or recent activity
+      const activeLinks = currentLinks.filter((l) => (l.clickCount || 0) > 0);
+      if (activeLinks.length === 0) {
+        setTimeSeriesData({});
+        return;
+      }
+
+      setIsLoadingTimeline(true);
+      try {
+        const statsPromises = activeLinks.slice(0, 15).map((l) =>
+          urlApi.getStats(l.shortId, range === '90d' ? 'all' : range)
+        );
+
+        const results = await Promise.allSettled(statsPromises);
+        const aggregated: Record<string, number> = {};
+
+        results.forEach((res) => {
+          if (res.status === 'fulfilled' && res.value?.timeSeries) {
+            Object.entries(res.value.timeSeries).forEach(([dateStr, count]) => {
+              aggregated[dateStr] = (aggregated[dateStr] || 0) + Number(count);
+            });
+          }
+        });
+
+        setTimeSeriesData(aggregated);
+      } catch (err: unknown) {
+        log.warn('Could not load click timeline data:', err);
+      } finally {
+        setIsLoadingTimeline(false);
+      }
+    },
+    []
   );
 
   useEffect(() => {
@@ -69,9 +129,31 @@ export const UrlsPage: React.FC = () => {
     fetchTags();
   }, [fetchLinks, fetchTags]);
 
+  useEffect(() => {
+    fetchTimelineData(links, timelineRange);
+  }, [links, timelineRange, fetchTimelineData]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    fetchLinks(val, selectedTag, 1);
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchLinks(searchQuery);
+    setCurrentPage(1);
+    fetchLinks(searchQuery, selectedTag, 1);
+  };
+
+  const handleTagChange = (newTag: string) => {
+    setSelectedTag(newTag);
+    setCurrentPage(1);
+    fetchLinks(searchQuery, newTag, 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    fetchLinks(searchQuery, selectedTag, newPage);
   };
 
   const handleShorten = async (data: {
@@ -117,6 +199,7 @@ export const UrlsPage: React.FC = () => {
         message: 'Your short link has been created successfully!',
       });
 
+      // Refresh real data from backend
       fetchLinks();
       fetchTags();
     } catch (err: unknown) {
@@ -133,6 +216,7 @@ export const UrlsPage: React.FC = () => {
     try {
       await urlApi.deleteUrl(shortId);
       setLinks((prev) => prev.filter((u) => u.shortId !== shortId));
+      setTotalCount((c) => Math.max(c - 1, 0));
       fetchTags();
       setAlert({
         type: 'success',
@@ -162,19 +246,34 @@ export const UrlsPage: React.FC = () => {
     }
   };
 
-  // Stats calculation
+  // Real Stats calculation strictly from backend data
   const totalClicks = links.reduce((sum, u) => sum + (u.clickCount || 0), 0);
   const totalProtected = links.filter((u) => u.passwordProtected).length;
   const avgClicks =
-    links.length > 0 ? (totalClicks / links.length).toFixed(1) : '0';
+    totalCount > 0 ? (totalClicks / totalCount).toFixed(1) : '0';
+
+  // Real growth and counts strictly from backend data
+  const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const linksCreatedLast7d = links.filter(
+    (l) => new Date(l.createdAt).getTime() >= sevenDaysAgoMs
+  ).length;
+
+  const clicksLast7d = useMemo(() => {
+    let sum = 0;
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().split('T')[0];
+      sum += timeSeriesData[iso] || 0;
+    }
+    return sum;
+  }, [timeSeriesData]);
 
   return (
     <DashboardLayout
       searchValue={searchQuery}
-      onSearchChange={(val) => {
-        setSearchQuery(val);
-        fetchLinks(val);
-      }}
+      onSearchChange={handleSearchChange}
       onSearchSubmit={handleSearchSubmit}
     >
       {/* Global alert notification */}
@@ -188,11 +287,13 @@ export const UrlsPage: React.FC = () => {
 
       {/* 1. Header greeting & 4 Metric Cards */}
       <StatCardsRow
-        userName={user?.name || 'Sujal Agrawal'}
-        totalLinks={links.length}
+        userName={user?.name || user?.email?.split('@')[0] || 'User'}
+        totalLinks={totalCount}
         totalClicks={totalClicks}
         totalProtected={totalProtected}
         avgClicks={avgClicks}
+        linksCreatedLast7d={linksCreatedLast7d}
+        clicksLast7d={clicksLast7d}
       />
 
       {/* 2. Quick Shorten Box */}
@@ -213,13 +314,27 @@ export const UrlsPage: React.FC = () => {
           }}
         />
 
-        <ClickTimelineCard urls={links} />
+        <ClickTimelineCard
+          timeSeriesData={timeSeriesData}
+          range={timelineRange}
+          onRangeChange={setTimelineRange}
+          isLoading={isLoadingTimeline}
+        />
       </div>
 
       {/* 4. Your Links Table */}
       <YourLinksTable
         links={links}
+        totalCount={totalCount}
         tags={allUserTags}
+        search={searchQuery}
+        onSearchChange={handleSearchChange}
+        selectedTag={selectedTag}
+        onSelectTag={handleTagChange}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        pageSize={pageSize}
+        isLoading={isLoadingLinks}
         onCopy={handleCopyLink}
         copiedId={copiedId}
         onAnalytics={(shortId) => setAnalyticsShortId(shortId)}

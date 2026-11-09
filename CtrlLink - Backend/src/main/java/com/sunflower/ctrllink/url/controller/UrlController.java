@@ -180,6 +180,7 @@ public class UrlController {
         long lookbackMs = switch (range) {
             case "24h" -> 86400000L;
             case "7d" -> 604800000L;
+            case "30d" -> 2592000000L;
             default -> 0L; // All time
         };
         log.debug("Stats query for shortId={} [range={}]", shortId, range);

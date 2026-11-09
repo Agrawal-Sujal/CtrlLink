@@ -72,7 +72,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     navigate('/login');
   };
 
-  const displayName = user?.name?.trim() || 'Sujal Agrawal';
+  const displayName = user?.name?.trim() || user?.email?.split('@')[0] || 'User';
   const displayInitial = displayName ? displayName[0].toUpperCase() : 'S';
 
   return (

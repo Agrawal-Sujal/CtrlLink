@@ -15,6 +15,7 @@ export interface ShortenResponse {
   shortUrl: string;
   longUrl: string;
   createdAt: string;
+  expiryTime?: string;
   title?: string;
   passwordProtected: boolean;
   password?: string;
@@ -30,6 +31,7 @@ export interface UrlStatsResponse {
   clickCount: number;
   lastAccessedTime?: string;
   createdAt: string;
+  expiryTime?: string;
   title?: string;
   passwordProtected: boolean;
   password?: string;

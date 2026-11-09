@@ -13,6 +13,7 @@ public class UrlStatsResponseDto {
     private long clickCount;
     private LocalDateTime lastAccessedTime;
     private LocalDateTime createdAt;
+    private LocalDateTime expiryTime;
     private String title;
     private boolean passwordProtected;
     private String password;
@@ -37,6 +38,15 @@ public class UrlStatsResponseDto {
                                boolean passwordProtected, String password, Map<String, Long> timeSeries,
                                Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices,
                                Integer orderIndex, String category, Set<String> tags) {
+        this(shortId, customPath, folderPathKey, longUrl, clickCount, lastAccessedTime, createdAt, null, title,
+                passwordProtected, password, timeSeries, countries, referrers, devices, orderIndex, category, tags);
+    }
+
+    public UrlStatsResponseDto(String shortId, String customPath, String folderPathKey, String longUrl, long clickCount,
+                               LocalDateTime lastAccessedTime, LocalDateTime createdAt, LocalDateTime expiryTime, String title,
+                               boolean passwordProtected, String password, Map<String, Long> timeSeries,
+                               Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices,
+                               Integer orderIndex, String category, Set<String> tags) {
         this.shortId = shortId;
         this.customPath = customPath != null ? customPath : shortId;
         this.folderPathKey = folderPathKey != null ? folderPathKey : "";
@@ -44,6 +54,7 @@ public class UrlStatsResponseDto {
         this.clickCount = clickCount;
         this.lastAccessedTime = lastAccessedTime;
         this.createdAt = createdAt;
+        this.expiryTime = expiryTime;
         this.title = title;
         this.passwordProtected = passwordProtected;
         this.password = password;
@@ -86,6 +97,10 @@ public class UrlStatsResponseDto {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public LocalDateTime getExpiryTime() {
+        return expiryTime;
     }
 
     public boolean isPasswordProtected() {
