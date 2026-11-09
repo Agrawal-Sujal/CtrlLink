@@ -7,7 +7,9 @@ import java.util.Set;
 import java.util.HashSet;
 
 @Entity
-@Table(name = "urls")
+@Table(name = "urls", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_urls_folder_path_short_id", columnNames = {"folder_path_key", "shortId"})
+})
 public class UrlEntity {
 
     @Id
@@ -15,8 +17,14 @@ public class UrlEntity {
     @SequenceGenerator(name = "url_seq", sequenceName = "url_id_seq", allocationSize = 1)
     private Long id;
 
-    @Column(unique = true)
+    @Column(nullable = false)
     private String shortId;
+
+    @Column(name = "folder_path_key", nullable = false, columnDefinition = "varchar(255) default ''")
+    private String folderPathKey = "";
+
+    @Column(name = "custom_path", length = 500)
+    private String customPath;
 
     @Column(nullable = false, length = 2048)
     private String longUrl;
@@ -156,5 +164,21 @@ public class UrlEntity {
     public Set<String> getTags() { return tags; }
 
     public void setTags(Set<String> tags) { this.tags = tags; }
+
+    public String getFolderPathKey() {
+        return folderPathKey != null ? folderPathKey : "";
+    }
+
+    public void setFolderPathKey(String folderPathKey) {
+        this.folderPathKey = folderPathKey != null ? folderPathKey : "";
+    }
+
+    public String getCustomPath() {
+        return customPath != null ? customPath : shortId;
+    }
+
+    public void setCustomPath(String customPath) {
+        this.customPath = customPath;
+    }
 
 }

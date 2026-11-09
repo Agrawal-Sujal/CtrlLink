@@ -13,7 +13,6 @@ import { UrlsPage } from './pages/UrlsPage';
 import { TagsPage } from './pages/TagsPage';
 import { PasswordChallengePage } from './pages/PasswordChallengePage';
 import { RedirectPage } from './pages/RedirectPage';
-import { NotFoundPage } from './pages/NotFoundPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 
@@ -38,8 +37,8 @@ export const App: React.FC = () => {
               </Route>
 
               {/* Public Short Link Redirection & Password Challenge */}
-              <Route path="/p/:shortId" element={<PasswordChallengePage />} />
-              <Route path="/r/:shortId" element={<RedirectPage />} />
+              <Route path="/p/*" element={<PasswordChallengePage />} />
+              <Route path="/r/*" element={<RedirectPage />} />
 
               {/* Protected URL Shortener & Profile Routes (Require Authentication) */}
               <Route element={<ProtectedRoute />}>
@@ -50,11 +49,8 @@ export const App: React.FC = () => {
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
-              {/* Direct shortId matching before 404 */}
-              <Route path="/:shortId" element={<RedirectPage />} />
-
-              {/* 404 catch-all */}
-              <Route path="*" element={<NotFoundPage />} />
+              {/* Direct shortId & nested custom path matching */}
+              <Route path="/*" element={<RedirectPage />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

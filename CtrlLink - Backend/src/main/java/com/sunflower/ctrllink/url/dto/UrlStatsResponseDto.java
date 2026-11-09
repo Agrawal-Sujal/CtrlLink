@@ -1,4 +1,5 @@
 package com.sunflower.ctrllink.url.dto;
+
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
@@ -6,6 +7,8 @@ import java.util.Set;
 public class UrlStatsResponseDto {
 
     private String shortId;
+    private String customPath;
+    private String folderPathKey;
     private String longUrl;
     private long clickCount;
     private LocalDateTime lastAccessedTime;
@@ -21,8 +24,22 @@ public class UrlStatsResponseDto {
     private String category;
     private Set<String> tags;
 
-    public UrlStatsResponseDto(String shortId, String longUrl, long clickCount, LocalDateTime lastAccessedTime, LocalDateTime createdAt, String title, boolean passwordProtected, String password, Map<String, Long> timeSeries, Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices, Integer orderIndex, String category, Set<String> tags) {
+    public UrlStatsResponseDto(String shortId, String longUrl, long clickCount, LocalDateTime lastAccessedTime,
+                               LocalDateTime createdAt, String title, boolean passwordProtected, String password,
+                               Map<String, Long> timeSeries, Map<String, Long> countries, Map<String, Long> referrers,
+                               Map<String, Long> devices, Integer orderIndex, String category, Set<String> tags) {
+        this(shortId, shortId, "", longUrl, clickCount, lastAccessedTime, createdAt, title,
+                passwordProtected, password, timeSeries, countries, referrers, devices, orderIndex, category, tags);
+    }
+
+    public UrlStatsResponseDto(String shortId, String customPath, String folderPathKey, String longUrl, long clickCount,
+                               LocalDateTime lastAccessedTime, LocalDateTime createdAt, String title,
+                               boolean passwordProtected, String password, Map<String, Long> timeSeries,
+                               Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices,
+                               Integer orderIndex, String category, Set<String> tags) {
         this.shortId = shortId;
+        this.customPath = customPath != null ? customPath : shortId;
+        this.folderPathKey = folderPathKey != null ? folderPathKey : "";
         this.longUrl = longUrl;
         this.clickCount = clickCount;
         this.lastAccessedTime = lastAccessedTime;
@@ -45,6 +62,14 @@ public class UrlStatsResponseDto {
 
     public String getShortId() {
         return shortId;
+    }
+
+    public String getCustomPath() {
+        return customPath;
+    }
+
+    public String getFolderPathKey() {
+        return folderPathKey;
     }
 
     public String getLongUrl() {

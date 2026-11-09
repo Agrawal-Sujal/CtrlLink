@@ -18,6 +18,16 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
 
     boolean existsByShortId(String shortId);
 
+    Optional<UrlEntity> findByFolderPathKeyAndShortId(String folderPathKey, String shortId);
+
+    boolean existsByFolderPathKeyAndShortId(String folderPathKey, String shortId);
+
+    Optional<UrlEntity> findByCustomPath(String customPath);
+
+    boolean existsByCustomPath(String customPath);
+
+    Optional<UrlEntity> findByCustomPathAndUserId(String customPath, Long userId);
+
     Optional<UrlEntity> findByLongUrl(String longUrl);
 
     List<UrlEntity> findTop1000ByOrderByClickCountDesc();
@@ -41,7 +51,7 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
         UPDATE UrlEntity u
         SET u.clickCount = u.clickCount + :count,
             u.lastAccessedTime = CURRENT_TIMESTAMP
-        WHERE u.shortId = :shortId
+        WHERE u.customPath = :shortId OR (u.customPath IS NULL AND u.shortId = :shortId) OR u.shortId = :shortId
         """)
     void incrementClickCount(@Param("shortId") String shortId,
                              @Param("count") Long count);
@@ -69,6 +79,7 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
            "WHERE u.userId = :userId AND (" +
            "LOWER(u.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.shortId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(COALESCE(u.customPath, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.longUrl) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(t) LIKE LOWER(CONCAT('%', :search, '%'))" +
            ")")
@@ -80,6 +91,7 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
     @Query("SELECT DISTINCT u FROM UrlEntity u JOIN u.tags t WHERE u.userId = :userId AND LOWER(t) = LOWER(:tag) AND (" +
            "LOWER(u.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.shortId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(COALESCE(u.customPath, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.longUrl) LIKE LOWER(CONCAT('%', :search, '%'))" +
            ")")
     Page<UrlEntity> searchByUserIdAndTagAndKeyword(@Param("userId") Long userId, @Param("tag") String tag, @Param("search") String search, Pageable pageable);

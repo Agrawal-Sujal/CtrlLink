@@ -122,10 +122,14 @@ public class UrlController {
         }
 
         UrlEntity entity = urlService.shortenUrl(request.getLongUrl(), request.getCustomAlias(), request.getExpiryDays(), userId, request.getTitle(), request.getPassword(), request.isUseAutoTitle(), request.getTags());
-        log.info("URL shortened successfully: shortId={}, longUrl={}", entity.getShortId(), entity.getLongUrl());
+        log.info("URL shortened successfully: shortId={}, customPath={}, longUrl={}",
+                entity.getShortId(), entity.getCustomPath(), entity.getLongUrl());
+        String displayPath = entity.getCustomPath() != null ? entity.getCustomPath() : entity.getShortId();
         return new ShortenResponseDto(
                 entity.getShortId(),
-                baseUrl + "/" + entity.getShortId(),
+                displayPath,
+                entity.getFolderPathKey(),
+                baseUrl + "/" + displayPath,
                 entity.getLongUrl(),
                 entity.getCreatedAt(),
                 entity.getTitle(),
@@ -236,11 +240,17 @@ public class UrlController {
     }
 
     @Operation(summary = "Resolve password-protected link", description = "Verifies password and returns the original long URL.")
-    @PostMapping("/resolve/{shortId}")
+    @PostMapping("/resolve/{*shortId}")
     public ResponseEntity<?> resolvePassword(@PathVariable String shortId, @RequestBody Map<String, String> body, HttpServletRequest request) {
+        String tempId = shortId != null ? shortId.trim() : "";
+        while (tempId.startsWith("/")) {
+            tempId = tempId.substring(1);
+        }
+        final String cleanId = tempId;
         String password = body.get("password");
-        log.debug("Password verification attempt for shortId={}", shortId);
-        UrlEntity entity = urlRepository.findByShortId(shortId)
+        log.debug("Password verification attempt for shortId={}", cleanId);
+        UrlEntity entity = urlRepository.findByCustomPath(cleanId)
+                .or(() -> urlRepository.findByShortId(cleanId))
                 .orElseThrow(() -> new NotFoundException("URL not found"));
 
         String storedPassword = entity.getPassword();
@@ -255,7 +265,8 @@ public class UrlController {
 
         if (matches) {
             // NEW: Record Analytics with IP
-            analyticsService.recordClick(shortId, getClientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer"));
+            String recordKey = entity.getCustomPath() != null ? entity.getCustomPath() : cleanId;
+            analyticsService.recordClick(recordKey, getClientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer"));
             return ResponseEntity.ok(Map.of("longUrl", entity.getLongUrl()));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect password");

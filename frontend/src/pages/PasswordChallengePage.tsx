@@ -8,7 +8,9 @@ import { AlertBanner } from '../components/AlertBanner';
 import { urlApi, getErrorMessage } from '../services/api';
 
 export const PasswordChallengePage: React.FC = () => {
-  const { shortId } = useParams<{ shortId: string }>();
+  const params = useParams();
+  const rawPath = params['*'] || params.shortId || window.location.pathname.replace(/^\/p\//, '');
+  const shortId = rawPath.replace(/^\//, '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -5,6 +5,7 @@ import com.sunflower.ctrllink.exception.GoneException;
 import com.sunflower.ctrllink.exception.NotFoundException;
 import com.sunflower.ctrllink.url.entity.UrlEntity;
 import com.sunflower.ctrllink.url.repository.UrlRepository;
+import com.sunflower.ctrllink.url.service.FolderService;
 import com.sunflower.ctrllink.url.service.UrlService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,8 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -34,17 +34,20 @@ public class RedirectController {
     private final UrlRepository urlRepository;
     private final AnalyticsService analyticsService;
     private final RedisTemplate<String, String> redisTemplate;
+    private final FolderService folderService;
 
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
     public RedirectController(UrlService urlService, UrlRepository urlRepository,
                               AnalyticsService analyticsService,
-                              RedisTemplate<String, String> redisTemplate) {
+                              RedisTemplate<String, String> redisTemplate,
+                              FolderService folderService) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
         this.analyticsService = analyticsService;
         this.redisTemplate = redisTemplate;
+        this.folderService = folderService;
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -55,91 +58,140 @@ public class RedirectController {
         return request.getRemoteAddr();
     }
 
-    @Operation(summary = "Redirect or Social Preview", description = "Handles the core redirection logic. Detects social media bots (WhatsApp, Twitter, FB) and returns OG tags for rich previews. Otherwise, redirects to the target URL (or password challenge).")
-    @GetMapping("/{shortId}")
-    public ResponseEntity<?> redirect(@PathVariable String shortId, HttpServletRequest request) {
+    private String cleanPath(String rawPath) {
+        if (rawPath == null) return "";
+        String clean = rawPath.trim().toLowerCase();
+        while (clean.startsWith("/")) {
+            clean = clean.substring(1);
+        }
+        while (clean.endsWith("/")) {
+            clean = clean.substring(0, clean.length() - 1);
+        }
+        return clean;
+    }
 
-        log.debug("Redirect requested for shortId={} [ip={}]", shortId, getClientIp(request));
-        String cacheKey = "url:entity:" + shortId;
+    @Operation(summary = "Redirect or Social Preview", description = "Handles the core redirection logic for root and nested custom folder paths. Detects social media bots and returns OG tags for rich previews. Otherwise, redirects to the target URL (or password challenge).")
+    @GetMapping("/{*path}")
+    public ResponseEntity<?> redirect(@PathVariable String path, HttpServletRequest request) {
+
+        String targetPath = cleanPath(path);
+        if (targetPath.isEmpty()) {
+            throw new NotFoundException("URL not found");
+        }
+
+        // Avoid intercepting internal endpoints if path pattern falls through
+        if (targetPath.startsWith("api/") || targetPath.startsWith("swagger-ui") ||
+            targetPath.startsWith("v3/") || targetPath.startsWith("actuator") ||
+            targetPath.equals("favicon.ico")) {
+            throw new NotFoundException("Endpoint not found");
+        }
+
+        log.debug("Redirect requested for path='{}' [ip={}]", targetPath, getClientIp(request));
+
+        String cacheKey = "url:entity:path:" + targetPath;
         Map<Object, Object> cached = redisTemplate.opsForHash().entries(cacheKey);
+        if (cached.isEmpty() && !targetPath.contains("/")) {
+            // Also check legacy root cache key
+            cached = redisTemplate.opsForHash().entries("url:entity:" + targetPath);
+        }
 
         String longUrl;
         boolean hasPassword;
         String title;
+        String fullPath = targetPath;
 
         if (!cached.isEmpty()) {
-            // Cache HIT — zero DB hit on the hot path
-            log.trace("Redirect cache HIT for shortId={}", shortId);
+            // Cache HIT — zero DB hit on hot path
+            log.trace("Redirect cache HIT for path='{}'", targetPath);
             longUrl     = (String) cached.get("longUrl");
             hasPassword = "true".equals(cached.get("hasPassword"));
             title       = (String) cached.get("title");
+            if (cached.containsKey("customPath")) {
+                fullPath = (String) cached.get("customPath");
+            }
 
             // Check expiry from cache
             String expiryStr = (String) cached.get("expiryTime");
             if (expiryStr != null && !expiryStr.isEmpty()
                     && LocalDateTime.parse(expiryStr).isBefore(LocalDateTime.now())) {
-                log.info("Redirect rejected: shortId={} has expired", shortId);
+                log.info("Redirect rejected: path='{}' has expired", targetPath);
                 throw new GoneException("Short URL has expired");
             }
         } else {
-            // Cache MISS — hit DB, then populate cache for next time
-            log.debug("Redirect cache MISS for shortId={}, querying database", shortId);
-            UrlEntity entity = urlRepository.findByShortId(shortId)
+            // Cache MISS — parse folder hierarchy and query database
+            log.debug("Redirect cache MISS for path='{}', querying database", targetPath);
+            String[] segments = targetPath.split("/");
+            if (segments.length > 5) {
+                throw new NotFoundException("URL not found");
+            }
+
+            String folderPathKey = "";
+            String terminalAlias = segments[segments.length - 1];
+
+            if (segments.length > 1) {
+                List<String> folderSegments = Arrays.asList(Arrays.copyOfRange(segments, 0, segments.length - 1));
+                Optional<String> resolvedKeyOpt = folderService.resolveFolderPathKey(folderSegments);
+                if (resolvedKeyOpt.isEmpty()) {
+                    log.debug("Folder path does not exist for: '{}'", targetPath);
+                    throw new NotFoundException("URL not found");
+                }
+                folderPathKey = resolvedKeyOpt.get();
+            }
+
+            UrlEntity entity = urlRepository.findByFolderPathKeyAndShortId(folderPathKey, terminalAlias)
+                    .or(() -> urlRepository.findByCustomPath(targetPath))
+                    .or(() -> (!targetPath.contains("/")) ? urlRepository.findByShortId(targetPath) : Optional.empty())
                     .orElseThrow(() -> new NotFoundException("URL not found"));
 
             if (entity.getExpiryTime() != null && entity.getExpiryTime().isBefore(LocalDateTime.now())) {
-                log.info("Redirect rejected: shortId={} has expired (from DB check)", shortId);
+                log.info("Redirect rejected: path='{}' has expired (from DB check)", targetPath);
                 throw new GoneException("Short URL has expired");
             }
 
             longUrl     = entity.getLongUrl();
             hasPassword = entity.getPassword() != null;
             title       = entity.getTitle();
+            fullPath    = entity.getCustomPath() != null ? entity.getCustomPath() : targetPath;
 
-            // Cache the redirect-critical fields as a Redis Hash
             cacheEntityForRedirect(cacheKey, entity);
+            if (!targetPath.contains("/")) {
+                cacheEntityForRedirect("url:entity:" + targetPath, entity);
+            }
         }
 
-        // Social Bot Detection for Rich Previews (WhatsApp, Twitter, FB, etc.)
+        // Social Bot Detection for Rich Previews
         String userAgent = request.getHeader("User-Agent");
         if (isSocialBot(userAgent)) {
-            log.info("Social bot detected for shortId={}: ua={}", shortId, userAgent);
+            log.info("Social bot detected for path='{}': ua={}", fullPath, userAgent);
             return ResponseEntity.ok()
                     .header("Content-Type", "text/html; charset=UTF-8")
-                    .body(generateSocialHtml(title, longUrl, shortId, request));
+                    .body(generateSocialHtml(title, longUrl, fullPath, request));
         }
 
-        // If password is set, don't redirect yet. Tell the frontend to ask for a password.
+        // If password is set, redirect to frontend password challenge page
         if (hasPassword) {
-            log.debug("Redirect intercepted: password required for shortId={}", shortId);
-            // Redirect to the frontend password challenge page
+            log.debug("Redirect intercepted: password required for path='{}'", fullPath);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/p/" + shortId))
+                    .location(URI.create(frontendUrl + "/p/" + fullPath))
                     .build();
         }
 
-        // Record Analytics with IP (Only for non-password links here)
-        // Password links are recorded in UrlController.resolvePassword instead
-        analyticsService.recordClick(shortId, getClientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer"));
+        // Record Analytics
+        analyticsService.recordClick(fullPath, getClientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer"));
 
-        // No password -> Proceed with normal redirect (Fix #3: use longUrl directly, no redundant getLongUrl call)
-        log.info("Redirecting shortId={} -> target={}", shortId, longUrl);
+        log.info("Redirecting path='{}' -> target={}", fullPath, longUrl);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(longUrl))
                 .build();
     }
 
-    /**
-     * Caches the redirect-critical fields of a UrlEntity as a Redis Hash.
-     * This allows subsequent redirect requests to skip the database entirely.
-     */
     private void cacheEntityForRedirect(String cacheKey, UrlEntity entity) {
         Map<String, String> fields = new HashMap<>();
         fields.put("longUrl", entity.getLongUrl());
         fields.put("hasPassword", String.valueOf(entity.getPassword() != null));
         fields.put("title", entity.getTitle() != null ? entity.getTitle() : "");
-        fields.put("expiryTime", entity.getExpiryTime() != null
-                ? entity.getExpiryTime().toString() : "");
+        fields.put("customPath", entity.getCustomPath() != null ? entity.getCustomPath() : entity.getShortId());
+        fields.put("expiryTime", entity.getExpiryTime() != null ? entity.getExpiryTime().toString() : "");
 
         redisTemplate.opsForHash().putAll(cacheKey, fields);
         redisTemplate.expire(cacheKey, 24, TimeUnit.HOURS);
@@ -148,24 +200,23 @@ public class RedirectController {
     private boolean isSocialBot(String ua) {
         if (ua == null) return false;
         String lowerUa = ua.toLowerCase();
-        return lowerUa.contains("whatsapp") || 
-               lowerUa.contains("facebookexternalhit") || 
-               lowerUa.contains("twitterbot") || 
-               lowerUa.contains("slackbot") || 
-               lowerUa.contains("linkedinbot") || 
+        return lowerUa.contains("whatsapp") ||
+               lowerUa.contains("facebookexternalhit") ||
+               lowerUa.contains("twitterbot") ||
+               lowerUa.contains("slackbot") ||
+               lowerUa.contains("linkedinbot") ||
                lowerUa.contains("discordbot") ||
                lowerUa.contains("telegrambot");
     }
 
-    private String generateSocialHtml(String title, String longUrl, String shortId, HttpServletRequest request) {
+    private String generateSocialHtml(String title, String longUrl, String fullPath, HttpServletRequest request) {
         String displayTitle = (title != null && !title.isBlank()) ? title : "CtrlLink | Smart URL Shortener & Digital Identity";
         String description = "AI-secured short link by CtrlLink — smart URL shortener with analytics and Bio-Link profiles.";
-        
+
         String scheme = request.getScheme();
         String serverName = request.getServerName();
-        String url = scheme + "://" + serverName + "/" + shortId;
-        
-        // Branded social image remains on the main frontend domain
+        String url = scheme + "://" + serverName + "/" + fullPath;
+
         String imageUrl = "";
 
         return "<!DOCTYPE html>\n" +

@@ -28,8 +28,9 @@ export const UrlBarChart: React.FC<UrlBarChartProps> = ({ urls, onSelectUrl }) =
   // Format data for chart
   const data = urls.slice(0, 15).map((u) => ({
     shortId: u.shortId,
-    displayName: u.title ? (u.title.length > 12 ? `${u.title.slice(0, 12)}…` : u.title) : `/${u.shortId}`,
-    fullTitle: u.title || `/${u.shortId}`,
+    customPath: u.customPath,
+    displayName: u.title ? (u.title.length > 12 ? `${u.title.slice(0, 12)}…` : u.title) : `/${u.customPath || u.shortId}`,
+    fullTitle: u.title || `/${u.customPath || u.shortId}`,
     clicks: u.clickCount || 0,
     longUrl: u.longUrl,
   }));
@@ -108,7 +109,7 @@ export const UrlBarChart: React.FC<UrlBarChartProps> = ({ urls, onSelectUrl }) =
                       className="p-3.5 rounded-2xl border shadow-2xl text-xs space-y-1.5 backdrop-blur-md"
                     >
                       <p className="font-bold text-zinc-900 dark:text-white">{item.fullTitle}</p>
-                      <p className="text-indigo-500 font-mono font-medium">/{item.shortId}</p>
+                      <p className="text-indigo-500 font-mono font-medium">/{item.customPath || item.shortId}</p>
                       <p className="text-zinc-600 dark:text-zinc-300 font-semibold">
                         Clicks:{' '}
                         <span className="text-cyan-500 font-bold">{item.clicks}</span>

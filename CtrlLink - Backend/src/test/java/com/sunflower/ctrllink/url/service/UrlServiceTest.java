@@ -2,32 +2,35 @@ package com.sunflower.ctrllink.url.service;
 
 import com.sunflower.ctrllink.analytics.repository.GlobalStatsRepository;
 import com.sunflower.ctrllink.analytics.service.AnalyticsService;
+import com.sunflower.ctrllink.exception.BadRequestException;
 import com.sunflower.ctrllink.url.dto.TagSummaryDto;
 import com.sunflower.ctrllink.url.dto.UrlStatsResponseDto;
+import com.sunflower.ctrllink.url.entity.FolderWordEntity;
 import com.sunflower.ctrllink.url.entity.UrlEntity;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import java.util.List;
-import java.util.Set;
+import com.sunflower.ctrllink.url.repository.FolderWordRepository;
 import com.sunflower.ctrllink.url.repository.UrlRepository;
 import com.sunflower.ctrllink.utils.Base62IdEncoder;
 import com.sunflower.ctrllink.utils.EncryptionUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,10 +40,16 @@ class UrlServiceTest {
     private UrlRepository urlRepository;
 
     @Mock
+    private FolderWordRepository folderWordRepository;
+
+    @Mock
     private IdRangeService idRangeService;
 
     @Mock
     private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
 
     @Mock
     private ValueOperations<String, String> valueOperations;
@@ -61,6 +70,7 @@ class UrlServiceTest {
     private AnalyticsService analyticsService;
 
     private Base62IdEncoder base62IdEncoder;
+    private FolderService folderService;
     private UrlService urlService;
 
     @BeforeEach
@@ -68,6 +78,9 @@ class UrlServiceTest {
         base62IdEncoder = new Base62IdEncoder();
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        folderService = new FolderService(folderWordRepository, stringRedisTemplate);
 
         urlService = new UrlService(
                 urlRepository,
@@ -77,7 +90,8 @@ class UrlServiceTest {
                 globalStatsRepository,
                 metadataService,
                 encryptionUtils,
-                analyticsService
+                analyticsService,
+                folderService
         );
     }
 
@@ -88,7 +102,7 @@ class UrlServiceTest {
                 .thenReturn(Optional.empty());
 
         when(idRangeService.getNextId()).thenReturn(100L);
-        when(urlRepository.existsByShortId("bM")).thenReturn(false); // Base62 of 100 is "bM"
+        when(urlRepository.existsByFolderPathKeyAndShortId("", "bM")).thenReturn(false);
 
         when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -97,6 +111,8 @@ class UrlServiceTest {
         assertNotNull(result);
         assertEquals("bM", result.getShortId());
         assertEquals(longUrl, result.getLongUrl());
+        assertEquals("", result.getFolderPathKey());
+        assertEquals("bM", result.getCustomPath());
         assertFalse(result.isCustom());
 
         verify(idRangeService, times(1)).getNextId();
@@ -109,11 +125,9 @@ class UrlServiceTest {
         when(urlRepository.findFirstByLongUrlAndUserIdIsNullAndIsCustomFalseAndExpiryTimeIsNullAndPasswordIsNull(longUrl))
                 .thenReturn(Optional.empty());
 
-        // First ID produces "bM" which collides with an existing custom alias
-        // Second ID produces "bN" which is free
         when(idRangeService.getNextId()).thenReturn(100L, 101L);
-        when(urlRepository.existsByShortId("bM")).thenReturn(true);  // Collision!
-        when(urlRepository.existsByShortId("bN")).thenReturn(false); // Free!
+        when(urlRepository.existsByFolderPathKeyAndShortId("", "bM")).thenReturn(true);  // Collision!
+        when(urlRepository.existsByFolderPathKeyAndShortId("", "bN")).thenReturn(false); // Free!
 
         when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -121,10 +135,80 @@ class UrlServiceTest {
 
         assertNotNull(result);
         assertEquals("bN", result.getShortId());
-        // Verify it requested a second ID from the in-memory buffer
         verify(idRangeService, times(2)).getNextId();
-        verify(urlRepository, times(1)).existsByShortId("bM");
-        verify(urlRepository, times(1)).existsByShortId("bN");
+        verify(urlRepository, times(1)).existsByFolderPathKeyAndShortId("", "bM");
+        verify(urlRepository, times(1)).existsByFolderPathKeyAndShortId("", "bN");
+    }
+
+    @Test
+    void shouldCreateNestedFolderUrlWithCustomAlias() {
+        String longUrl = "https://youtube.com/watch?v=123";
+        String customPath = "youtube/videos/programming";
+
+        FolderWordEntity word1 = new FolderWordEntity("youtube");
+        setId(word1, 1L);
+        FolderWordEntity word2 = new FolderWordEntity("videos");
+        setId(word2, 2L);
+
+        when(folderWordRepository.findByWord("youtube")).thenReturn(Optional.of(word1));
+        when(folderWordRepository.findByWord("videos")).thenReturn(Optional.of(word2));
+
+        when(urlRepository.findByFolderPathKeyAndShortId("1_2", "programming")).thenReturn(Optional.empty());
+        when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UrlEntity result = urlService.shortenUrl(longUrl, customPath, null, 1L, null, null, false, null);
+
+        assertNotNull(result);
+        assertEquals("programming", result.getShortId());
+        assertEquals("1_2", result.getFolderPathKey());
+        assertEquals("youtube/videos/programming", result.getCustomPath());
+        assertTrue(result.isCustom());
+        verify(globalStatsRepository, times(1)).incrementLinks();
+    }
+
+    @Test
+    void shouldCreateNestedFolderUrlWithAutoGeneratedSlug() {
+        String longUrl = "https://youtube.com/watch?v=123";
+        String customPath = "youtube/videos/";
+
+        FolderWordEntity word1 = new FolderWordEntity("youtube");
+        setId(word1, 1L);
+        FolderWordEntity word2 = new FolderWordEntity("videos");
+        setId(word2, 2L);
+
+        when(folderWordRepository.findByWord("youtube")).thenReturn(Optional.of(word1));
+        when(folderWordRepository.findByWord("videos")).thenReturn(Optional.of(word2));
+
+        when(idRangeService.getNextId()).thenReturn(200L);
+        when(urlRepository.existsByFolderPathKeyAndShortId("1_2", "do")).thenReturn(false);
+        when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UrlEntity result = urlService.shortenUrl(longUrl, customPath, null, 1L, null, null, false, null);
+
+        assertNotNull(result);
+        assertEquals("do", result.getShortId());
+        assertEquals("1_2", result.getFolderPathKey());
+        assertEquals("youtube/videos/do", result.getCustomPath());
+    }
+
+    @Test
+    void shouldRejectPathExceedingMaxDepth() {
+        String longUrl = "https://example.com";
+        String deepPath = "one/two/three/four/five/six"; // 6 segments
+
+        assertThrows(BadRequestException.class, () ->
+                urlService.shortenUrl(longUrl, deepPath, null, 1L, null, null, false, null)
+        );
+    }
+
+    @Test
+    void shouldRejectInvalidSegmentCharacters() {
+        String longUrl = "https://example.com";
+        String invalidPath = "you tube/videos"; // space in segment
+
+        assertThrows(BadRequestException.class, () ->
+                urlService.shortenUrl(longUrl, invalidPath, null, 1L, null, null, false, null)
+        );
     }
 
     @Test
@@ -151,6 +235,7 @@ class UrlServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         UrlEntity entity = new UrlEntity();
         entity.setShortId("xyz12");
+        entity.setCustomPath("xyz12");
         entity.setLongUrl("https://example.com");
         entity.setTags(Set.of("developer"));
         Page<UrlEntity> page = new PageImpl<>(List.of(entity), pageable, 1);
@@ -169,7 +254,7 @@ class UrlServiceTest {
     void shouldIncrementPlatformLinksWhenCustomAliasCreated() {
         String longUrl = "https://example.com/custom";
         String alias = "mybrand";
-        when(urlRepository.findByShortId(alias)).thenReturn(Optional.empty());
+        when(urlRepository.findByFolderPathKeyAndShortId("", alias)).thenReturn(Optional.empty());
         when(urlRepository.save(any(UrlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UrlEntity result = urlService.shortenUrl(longUrl, alias, null, 1L, null, null, false, null);
@@ -185,8 +270,9 @@ class UrlServiceTest {
         Long userId = 10L;
         UrlEntity entity = new UrlEntity();
         entity.setShortId(shortId);
+        entity.setCustomPath(shortId);
         entity.setUserId(userId);
-        when(urlRepository.findByShortIdAndUserId(shortId, userId)).thenReturn(Optional.of(entity));
+        when(urlRepository.findByCustomPathAndUserId(shortId, userId)).thenReturn(Optional.of(entity));
 
         urlService.deleteUrl(shortId, userId);
 
@@ -199,19 +285,31 @@ class UrlServiceTest {
         Long userId = 10L;
         UrlEntity entity1 = new UrlEntity();
         entity1.setShortId("url1");
+        entity1.setCustomPath("url1");
         entity1.setUserId(userId);
 
         UrlEntity entity2 = new UrlEntity();
         entity2.setShortId("url2");
+        entity2.setCustomPath("url2");
         entity2.setUserId(userId);
 
-        when(urlRepository.findByShortIdAndUserId("url1", userId)).thenReturn(Optional.of(entity1));
-        when(urlRepository.findByShortIdAndUserId("url2", userId)).thenReturn(Optional.of(entity2));
+        when(urlRepository.findByCustomPathAndUserId("url1", userId)).thenReturn(Optional.of(entity1));
+        when(urlRepository.findByCustomPathAndUserId("url2", userId)).thenReturn(Optional.of(entity2));
 
         urlService.deleteUrls(List.of("url1", "url2"), userId);
 
         verify(urlRepository, times(1)).delete(entity1);
         verify(urlRepository, times(1)).delete(entity2);
         verify(globalStatsRepository, times(1)).decrementLinks(2);
+    }
+
+    private void setId(FolderWordEntity entity, Long id) {
+        try {
+            var field = FolderWordEntity.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(entity, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
