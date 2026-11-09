@@ -9,7 +9,8 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ResendVerificationPage } from './pages/ResendVerificationPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { UrlsPage } from './pages/UrlsPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { LinksPage } from './pages/LinksPage';
 import { TagsPage } from './pages/TagsPage';
 import { PasswordChallengePage } from './pages/PasswordChallengePage';
 import { RedirectPage } from './pages/RedirectPage';
@@ -42,9 +43,10 @@ export const App: React.FC = () => {
 
               {/* Protected URL Shortener & Profile Routes (Require Authentication) */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<UrlsPage />} />
-                <Route path="/urls" element={<Navigate to="/" replace />} />
+                <Route path="/" element={<DashboardPage />} />
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/links" element={<LinksPage />} />
+                <Route path="/urls" element={<Navigate to="/links" replace />} />
                 <Route path="/tags" element={<TagsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
