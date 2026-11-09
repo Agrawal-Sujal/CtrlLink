@@ -11,6 +11,7 @@ import {
   Globe,
   QrCode,
   Download,
+  Folder,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../Button';
@@ -51,6 +52,13 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
     url.shortUrl && !url.shortUrl.includes('/r/')
       ? url.shortUrl
       : `${API_BASE_URL}/${url.customPath || url.shortId}`;
+
+  const pathString = url.customPath || url.shortId;
+  const pathSegments = pathString.split('/').filter(Boolean);
+  const isNestedFolder = pathSegments.length > 1;
+  const folderSegments = isNestedFolder ? pathSegments.slice(0, pathSegments.length - 1) : [];
+  const folderPath = folderSegments.join('/');
+  const terminalSlug = isNestedFolder ? pathSegments[pathSegments.length - 1] : pathString;
 
   const handleCopyShort = () => {
     navigator.clipboard.writeText(displayShortUrl);
@@ -99,12 +107,12 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
         <div className="flex items-center justify-between border-b border-zinc-100 dark:border-white/[0.06] pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <Link2 className="w-5 h-5 -rotate-45" />
+              {isNestedFolder ? <Folder className="w-5 h-5 text-indigo-500" /> : <Link2 className="w-5 h-5 -rotate-45" />}
             </div>
             <div>
-              <h2 className="text-lg font-bold">Short URL Generated</h2>
+              <h2 className="text-lg font-bold">Custom Link Ready!</h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Ready to share with instant 302 redirection.
+                Organized and live with instant smart redirection.
               </p>
             </div>
           </div>
@@ -117,11 +125,42 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
           </button>
         </div>
 
-        {/* Short Link Display with Copy & QR toggle */}
+        {/* Folder Hierarchy Breadcrumb Card (if inside folder) */}
+        {isNestedFolder && (
+          <div className="p-3.5 rounded-2xl bg-indigo-500/[0.08] dark:bg-indigo-950/25 border border-indigo-500/20 space-y-2 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              <span className="flex items-center gap-1.5">
+                <Folder className="w-3.5 h-3.5" />
+                Folder Architecture
+              </span>
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/20">
+                /{folderPath}/
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+              <span className="text-zinc-400">Root</span>
+              {folderSegments.map((seg, i) => (
+                <React.Fragment key={i}>
+                  <span className="text-zinc-400">/</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold">
+                    <Folder className="w-2.5 h-2.5 text-indigo-500" />
+                    {seg}
+                  </span>
+                </React.Fragment>
+              ))}
+              <span className="text-zinc-400">/</span>
+              <span className="px-2 py-0.5 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-bold border border-zinc-200 dark:border-white/[0.08]">
+                {terminalSlug}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Link Display with Copy & QR toggle */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <label className="font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Your Short Link
+              Your Custom Link
             </label>
             <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               Instant 302 Redirection Active
@@ -215,6 +254,15 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
               <span className="text-zinc-500 dark:text-zinc-400 shrink-0">Title:</span>
               <span className="font-semibold text-zinc-900 dark:text-white truncate">
                 {url.title}
+              </span>
+            </div>
+          )}
+
+          {isNestedFolder && (
+            <div className="flex justify-between items-start gap-2">
+              <span className="text-zinc-500 dark:text-zinc-400 shrink-0">Folder:</span>
+              <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 truncate">
+                /{folderPath}/
               </span>
             </div>
           )}

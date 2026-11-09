@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Link2, LogOut, User as UserIcon, Tag } from 'lucide-react';
+import { Link2, LogOut, User as UserIcon, Tag, Folder } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
@@ -48,8 +48,8 @@ export const Navbar: React.FC = () => {
                     : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60'
                 }`}
               >
-                <Link2 className="w-3.5 h-3.5 -rotate-45" />
-                <span>Links &amp; Analytics</span>
+                <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Links &amp; Folders</span>
               </Link>
 
               <Link

@@ -59,10 +59,10 @@ export const UrlBarChart: React.FC<UrlBarChartProps> = ({ urls, onSelectUrl }) =
         <div>
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-indigo-500" />
-            Click Performance by Short URL
+            Click Performance by Link &amp; Custom Path
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            X-axis displays short URLs / titles, Y-axis displays total clicks generated.
+            X-axis displays custom paths / short URLs, Y-axis displays total clicks generated.
           </p>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { logger } from '../utils/logger';
 
@@ -23,8 +23,10 @@ import {
   RefreshCw,
   Eye,
   ClipboardPaste,
-  Sparkles,
   Clock,
+  Folder,
+  FolderTree,
+  FolderOpen,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Navbar } from '../components/Navbar';
@@ -37,6 +39,7 @@ import { UrlEditModal } from '../components/url/UrlEditModal';
 import { TagInput } from '../components/url/TagInput';
 import { UrlAnalyticsModal } from '../components/url/UrlAnalyticsModal';
 import { UrlPasswordModal } from '../components/url/UrlPasswordModal';
+import { FolderBuilder } from '../components/url/FolderBuilder';
 import { urlApi, getErrorMessage } from '../services/api';
 import { ShortenResponse, UrlStatsResponse, TagSummary } from '../types/url';
 
@@ -49,6 +52,7 @@ export const UrlsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'public' | 'protected'>('all');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [allUserTags, setAllUserTags] = useState<TagSummary[]>([]);
   const [alert, setAlert] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';
@@ -177,7 +181,7 @@ export const UrlsPage: React.FC = () => {
 
       setAlert({
         type: 'success',
-        message: 'Your short URL has been generated successfully!',
+        message: 'Your custom link has been generated successfully!',
       });
 
       fetchLinks();
@@ -193,7 +197,7 @@ export const UrlsPage: React.FC = () => {
   };
 
   const handleDeleteUrl = async (shortId: string) => {
-    if (!window.confirm(`Are you sure you want to delete short link /${shortId}?`)) {
+    if (!window.confirm(`Are you sure you want to delete link /${shortId}?`)) {
       return;
     }
 
@@ -203,7 +207,7 @@ export const UrlsPage: React.FC = () => {
       fetchTags();
       setAlert({
         type: 'success',
-        message: `Short URL /${shortId} deleted successfully.`,
+        message: `Link /${shortId} deleted successfully.`,
       });
     } catch (err: unknown) {
       setAlert({
@@ -241,15 +245,37 @@ export const UrlsPage: React.FC = () => {
     }
   };
 
+  // Extract distinct folder hierarchies from user's links
+  const folderSummaries = useMemo(() => {
+    const counts: Record<string, number> = {};
+    links.forEach((l) => {
+      const p = l.customPath || '';
+      if (p.includes('/')) {
+        const folder = p.substring(0, p.lastIndexOf('/'));
+        counts[folder] = (counts[folder] || 0) + 1;
+      }
+    });
+    return Object.entries(counts).map(([folder, count]) => ({ folder, count }));
+  }, [links]);
+
   // Stats calculation
   const totalClicks = links.reduce((sum, u) => sum + (u.clickCount || 0), 0);
   const totalProtected = links.filter((u) => u.passwordProtected).length;
-  const avgClicks = links.length > 0 ? (totalClicks / links.length).toFixed(1) : '0';
+  const totalFolders = folderSummaries.length;
 
   // Filter links
   const filteredLinks = links.filter((link) => {
-    if (statusFilter === 'public') return !link.passwordProtected;
-    if (statusFilter === 'protected') return link.passwordProtected;
+    if (statusFilter === 'public' && link.passwordProtected) return false;
+    if (statusFilter === 'protected' && !link.passwordProtected) return false;
+    if (selectedFolder) {
+      if (selectedFolder === '__root__') {
+        if (link.customPath && link.customPath.includes('/')) return false;
+      } else {
+        if (!link.customPath || !link.customPath.startsWith(selectedFolder + '/')) {
+          return false;
+        }
+      }
+    }
     return true;
   });
 
@@ -273,14 +299,14 @@ export const UrlsPage: React.FC = () => {
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto space-y-3 pt-2 pb-1">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Next-Gen Link Shortener &amp; Real-Time Analytics</span>
+            <Folder className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Smart Custom URL Engine &amp; Folder Routing</span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-linear-to-r from-zinc-900 via-indigo-950 to-zinc-800 dark:from-white dark:via-zinc-100 dark:to-zinc-400 bg-clip-text text-transparent">
-            Shorten Links, Expand Your Reach
+            Craft Custom URLs. Organize by Folder.
           </h1>
           <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            Create ultra-fast short URLs, protect sensitive links with passwords, set expiry dates, and analyze click telemetry in real-time.
+            Structure your links with multi-level folders (e.g. /work/projects/alpha), create branded aliases, secure destinations with passwords, and track real-time analytics.
           </p>
         </div>
 
@@ -320,7 +346,7 @@ export const UrlsPage: React.FC = () => {
                   leftIcon={<Plus className="w-4 h-4" />}
                   className="w-full sm:w-auto"
                 >
-                  Shorten Link
+                  Create Custom Link
                 </Button>
               </div>
             </div>
@@ -337,7 +363,8 @@ export const UrlsPage: React.FC = () => {
                       : 'border-zinc-200 dark:border-white/[0.08] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-850'
                   }`}
                 >
-                  <span>Link Options</span>
+                  <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Customize &amp; Folders</span>
                   {(customAlias || password || expiryDays || tags.length > 0 || title) && (
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                   )}
@@ -346,8 +373,9 @@ export const UrlsPage: React.FC = () => {
 
                 {/* Direct quick badges */}
                 {customAlias && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[11px] font-mono border border-indigo-500/20">
-                    path: /{customAlias.replace(/^\//, '')}
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[11px] font-mono border border-indigo-500/20">
+                    <Folder className="w-3 h-3 text-indigo-500" />
+                    <span>/{customAlias.replace(/^\//, '')}</span>
                   </span>
                 )}
                 {password && (
@@ -378,60 +406,62 @@ export const UrlsPage: React.FC = () => {
 
             {/* Expandable Advanced Options Drawer */}
             {showOptions && (
-              <div className="pt-4 border-t border-zinc-100 dark:border-white/[0.06] grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-200">
-                <Input
-                  label="Title (Optional)"
-                  type="text"
-                  placeholder="e.g. Portfolio Website"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  helperText="Human readable description"
-                />
-
-                <Input
-                  label="Custom Alias or Folder Path"
-                  type="text"
-                  placeholder="e.g. summer-launch or youtube/videos/programming"
+              <div className="pt-4 border-t border-zinc-100 dark:border-white/[0.06] space-y-4 animate-in fade-in duration-200">
+                {/* Visual Folder & Custom Path Builder */}
+                <FolderBuilder
                   value={customAlias}
-                  onChange={(e) => setCustomAlias(e.target.value)}
-                  helperText="Up to 5 path segments. Add a trailing slash (e.g. youtube/videos/) to auto-generate slug."
+                  onChange={setCustomAlias}
+                  existingFolders={folderSummaries.map((f) => f.folder)}
+                  baseUrl={API_BASE_URL}
                 />
 
-                <Input
-                  label="Password Protection"
-                  isPassword
-                  placeholder="Optional access password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  helperText="Visitors must enter password to redirect"
-                />
-
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                    Auto-Expiry
-                  </label>
-                  <select
-                    value={expiryDays || ''}
-                    onChange={(e) => setExpiryDays(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full rounded-xl text-sm py-2.5 px-3 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] text-zinc-900 dark:text-zinc-100 focus:border-indigo-500 outline-hidden cursor-pointer"
-                  >
-                    <option value="">Never (Permanent Link)</option>
-                    <option value="1">1 Day</option>
-                    <option value="7">7 Days</option>
-                    <option value="30">30 Days</option>
-                    <option value="90">90 Days</option>
-                    <option value="365">1 Year (365 Days)</option>
-                  </select>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Link deactivates automatically after period</p>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <TagInput
-                    selectedTags={tags}
-                    onChange={setTags}
-                    availableTags={allUserTags.map((t) => t.tag)}
+                {/* Additional Link Options Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Input
+                    label="Title (Optional)"
+                    type="text"
+                    placeholder="e.g. Portfolio Website"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    helperText="Human readable description"
                   />
+
+                  <Input
+                    label="Password Protection"
+                    isPassword
+                    placeholder="Optional access password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    helperText="Visitors must enter password to redirect"
+                  />
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      Auto-Expiry
+                    </label>
+                    <select
+                      value={expiryDays || ''}
+                      onChange={(e) => setExpiryDays(e.target.value ? Number(e.target.value) : undefined)}
+                      className="w-full rounded-xl text-sm py-2.5 px-3 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] text-zinc-900 dark:text-zinc-100 focus:border-indigo-500 outline-hidden cursor-pointer"
+                    >
+                      <option value="">Never (Permanent Link)</option>
+                      <option value="1">1 Day</option>
+                      <option value="7">7 Days</option>
+                      <option value="30">30 Days</option>
+                      <option value="90">90 Days</option>
+                      <option value="365">1 Year (365 Days)</option>
+                    </select>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Link deactivates automatically after period</p>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <TagInput
+                      selectedTags={tags}
+                      onChange={setTags}
+                      availableTags={allUserTags.map((t) => t.tag)}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -452,8 +482,18 @@ export const UrlsPage: React.FC = () => {
 
           <div className="rounded-2xl p-4 bg-white dark:bg-[#121215] border border-zinc-200/80 dark:border-white/[0.08] shadow-xs space-y-1">
             <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
+              <span>Active Folders</span>
+              <Folder className="w-4 h-4 text-cyan-500" />
+            </div>
+            <p className="text-2xl font-black text-zinc-900 dark:text-white">
+              {totalFolders}
+            </p>
+          </div>
+
+          <div className="rounded-2xl p-4 bg-white dark:bg-[#121215] border border-zinc-200/80 dark:border-white/[0.08] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
               <span>Total Clicks</span>
-              <MousePointerClick className="w-4 h-4 text-cyan-500" />
+              <MousePointerClick className="w-4 h-4 text-emerald-500" />
             </div>
             <p className="text-2xl font-black text-zinc-900 dark:text-white">
               {totalClicks.toLocaleString()}
@@ -467,16 +507,6 @@ export const UrlsPage: React.FC = () => {
             </div>
             <p className="text-2xl font-black text-zinc-900 dark:text-white">
               {totalProtected}
-            </p>
-          </div>
-
-          <div className="rounded-2xl p-4 bg-white dark:bg-[#121215] border border-zinc-200/80 dark:border-white/[0.08] shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
-              <span>Avg Clicks / Link</span>
-              <BarChart3 className="w-4 h-4 text-emerald-500" />
-            </div>
-            <p className="text-2xl font-black text-zinc-900 dark:text-white">
-              {avgClicks}
             </p>
           </div>
         </div>
@@ -493,13 +523,13 @@ export const UrlsPage: React.FC = () => {
         <div className="rounded-3xl p-6 sm:p-8 bg-white dark:bg-[#121215] border border-zinc-200/80 dark:border-white/[0.08] shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-white/[0.06] pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-                <Layers className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <FolderTree className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">Your Shortened Links</h2>
+                <h2 className="text-lg font-bold">Your Custom Links &amp; Folders</h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {links.length} link{links.length !== 1 ? 's' : ''} total &bull; {totalClicks.toLocaleString()} total clicks &bull; {totalProtected} protected
+                  {links.length} link{links.length !== 1 ? 's' : ''} total &bull; {totalFolders} active folder{totalFolders !== 1 ? 's' : ''} &bull; {totalClicks.toLocaleString()} total clicks
                 </p>
               </div>
             </div>
@@ -548,7 +578,7 @@ export const UrlsPage: React.FC = () => {
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
-                    placeholder="Search links, tags..."
+                    placeholder="Search links, folders, tags..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full rounded-xl text-xs sm:text-sm pl-9 pr-3 py-2 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.08] focus:border-indigo-500 outline-hidden"
@@ -560,6 +590,75 @@ export const UrlsPage: React.FC = () => {
               </form>
             </div>
           </div>
+
+          {/* Interactive Folder Filter Bar */}
+          {folderSummaries.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 mr-1 shrink-0">
+                <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Folders:</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedFolder(null)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  !selectedFolder
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-zinc-100 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-white/[0.08]'
+                }`}
+              >
+                All Folders ({folderSummaries.length})
+              </button>
+
+              {folderSummaries.map((item) => (
+                <button
+                  key={item.folder}
+                  type="button"
+                  onClick={() => setSelectedFolder(selectedFolder === item.folder ? null : item.folder)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedFolder === item.folder
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-zinc-100 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08]'
+                  }`}
+                >
+                  <Folder className="w-3 h-3 text-indigo-400" />
+                  <span>/{item.folder}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                      selectedFolder === item.folder
+                        ? 'bg-white/20 text-white'
+                        : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setSelectedFolder(selectedFolder === '__root__' ? null : '__root__')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  selectedFolder === '__root__'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-zinc-100 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-white/[0.08]'
+                }`}
+              >
+                <span>Direct Root Links</span>
+              </button>
+
+              {selectedFolder && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolder(null)}
+                  className="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 font-medium ml-1 cursor-pointer flex items-center gap-1"
+                >
+                  <span>&times; Clear folder filter</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Interactive Tag Filter Bar */}
           {allUserTags.length > 0 && (
@@ -628,20 +727,22 @@ export const UrlsPage: React.FC = () => {
           {isLoadingLinks ? (
             <div className="py-16 text-center text-zinc-500 text-sm">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
-              Loading your shortened URLs...
+              Loading your custom links &amp; folders...
             </div>
           ) : filteredLinks.length === 0 ? (
             <div className="py-16 text-center text-zinc-400 space-y-2">
-              <Link2 className="w-10 h-10 mx-auto opacity-30 text-indigo-500 -rotate-45" />
-              <p className="font-semibold text-zinc-700 dark:text-zinc-300">No short links found</p>
-              <p className="text-xs">Create your first link using the shorten box above!</p>
+              <FolderOpen className="w-10 h-10 mx-auto opacity-30 text-indigo-500" />
+              <p className="font-semibold text-zinc-700 dark:text-zinc-300">
+                {selectedFolder ? 'No links found in this folder' : 'No custom links found'}
+              </p>
+              <p className="text-xs">Create your first custom link using the builder above!</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 dark:border-white/[0.06] text-zinc-400 uppercase text-[11px] font-semibold tracking-wider">
-                    <th className="pb-3 pr-4">Link Details</th>
+                    <th className="pb-3 pr-4">Link &amp; Folder Structure</th>
                     <th className="pb-3 px-4">Clicks</th>
                     <th className="pb-3 px-4">Tags &amp; Security</th>
                     <th className="pb-3 px-4">Created</th>
@@ -651,13 +752,19 @@ export const UrlsPage: React.FC = () => {
                 <tbody className="divide-y divide-zinc-100 dark:divide-white/[0.04]">
                   {filteredLinks.map((link) => {
                     const domain = getDomainFromUrl(link.longUrl);
+                    const pathString = link.customPath || link.shortId;
+                    const pathSegments = pathString.split('/').filter(Boolean);
+                    const isNestedFolder = pathSegments.length > 1;
+                    const folderChain = isNestedFolder ? pathSegments.slice(0, pathSegments.length - 1) : [];
+                    const terminalSlug = isNestedFolder ? pathSegments[pathSegments.length - 1] : pathString;
+
                     return (
                       <tr
                         key={link.shortId}
                         className="group hover:bg-zinc-50/80 dark:hover:bg-[#18181b]/80 transition-colors"
                       >
-                        {/* 1. Title, Domain Favicon & Short URL */}
-                        <td className="py-4 pr-4 max-w-[280px]">
+                        {/* 1. Title, Domain Favicon & Short URL / Breadcrumb */}
+                        <td className="py-4 pr-4 max-w-[320px]">
                           <div className="flex items-start gap-3">
                             {/* Domain Favicon */}
                             <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08] flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
@@ -682,23 +789,55 @@ export const UrlsPage: React.FC = () => {
                                 className="font-bold text-zinc-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate block text-left w-full cursor-pointer"
                                 title="Open destination URL"
                               >
-                                {link.title || `/${link.customPath || link.shortId}`}
+                                {link.title || `/${pathString}`}
                               </button>
 
-                              <div className="flex items-center gap-1.5 font-mono text-xs text-indigo-600 dark:text-indigo-400">
-                                <button
-                                  type="button"
-                                  onClick={() => handleVisitLink(link)}
-                                  className="truncate hover:underline text-left cursor-pointer"
-                                  title="Click to visit destination"
-                                >
-                                  /{link.customPath || link.shortId}
-                                </button>
+                              {/* Path with Folder Breadcrumbs */}
+                              <div className="flex flex-wrap items-center gap-1 font-mono text-xs text-indigo-600 dark:text-indigo-400">
+                                {isNestedFolder ? (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {folderChain.map((fSeg, idx) => {
+                                      const partialFolderPath = folderChain.slice(0, idx + 1).join('/');
+                                      return (
+                                        <React.Fragment key={idx}>
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedFolder(partialFolderPath)}
+                                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold cursor-pointer transition-colors"
+                                            title={`Filter by folder: /${partialFolderPath}`}
+                                          >
+                                            <Folder className="w-2.5 h-2.5 text-indigo-500" />
+                                            <span>{fSeg}</span>
+                                          </button>
+                                          <span className="text-zinc-400 dark:text-zinc-600">/</span>
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleVisitLink(link)}
+                                      className="font-bold text-zinc-900 dark:text-white hover:underline cursor-pointer"
+                                      title="Open link destination"
+                                    >
+                                      {terminalSlug}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleVisitLink(link)}
+                                    className="truncate hover:underline text-left cursor-pointer"
+                                    title="Click to visit destination"
+                                  >
+                                    /{pathString}
+                                  </button>
+                                )}
+
                                 <button
                                   type="button"
                                   onClick={() => handleCopyLink(link.shortId, undefined, link.customPath)}
-                                  className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-indigo-500 cursor-pointer"
-                                  title="Copy short link"
+                                  className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-indigo-500 cursor-pointer ml-1"
+                                  title="Copy custom link"
                                 >
                                   {copiedId === link.shortId ? (
                                     <Check className="w-3.5 h-3.5 text-emerald-500" />
@@ -791,10 +930,10 @@ export const UrlsPage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* 5. Actions: Show URL, Analytics, Edit, Delete, Visit */}
+                        {/* 5. Actions: Link Details, Analytics, Edit, Delete, Visit */}
                         <td className="py-4 pl-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Show URL Pop-up */}
+                            {/* Link Details Pop-up */}
                             <Button
                               size="sm"
                               variant="outline"
@@ -811,9 +950,9 @@ export const UrlsPage: React.FC = () => {
                                 })
                               }
                               leftIcon={<Eye className="w-3.5 h-3.5" />}
-                              title="Show URL Details & QR Code"
+                              title="View Link Details & QR Code"
                             >
-                              Show URL
+                              Link Details
                             </Button>
 
                             {/* Analytics Button */}
@@ -851,7 +990,7 @@ export const UrlsPage: React.FC = () => {
                               type="button"
                               onClick={() => handleDeleteUrl(link.shortId)}
                               className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                              title="Delete Short URL"
+                              title="Delete Link"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

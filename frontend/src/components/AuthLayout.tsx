@@ -14,7 +14,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   children,
   title,
   subtitle,
-  badge = 'Next-Gen URL Control',
+  badge = 'Smart URLs & Folder Routing',
 }) => {
   return (
     <div className="min-h-screen w-full flex flex-col justify-between bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 transition-colors duration-200 relative overflow-hidden">
@@ -48,7 +48,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
               </span>
             </div>
             <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-              Smart URL &amp; Identity Platform
+              Custom URLs &amp; Folder Platform
             </span>
           </div>
         </Link>

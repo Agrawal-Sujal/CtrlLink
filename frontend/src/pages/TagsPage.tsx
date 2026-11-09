@@ -140,7 +140,7 @@ export const TagsPage: React.FC = () => {
       setAllLinks((prev) => prev.filter((u) => u.shortId !== shortId));
       setAlert({
         type: 'success',
-        message: `Short URL /${shortId} deleted successfully.`,
+        message: `Link /${shortId} deleted successfully.`,
       });
       fetchTagsAndAllLinks();
     } catch (err: unknown) {
@@ -296,7 +296,7 @@ export const TagsPage: React.FC = () => {
 
           <div className="rounded-2xl p-4 bg-white dark:bg-[#121215] border border-zinc-200/80 dark:border-white/[0.08] shadow-xs space-y-1">
             <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
-              <span>All Short Links</span>
+              <span>All Custom Links</span>
               <MousePointerClick className="w-4 h-4 text-amber-500" />
             </div>
             <p className="text-2xl font-black text-zinc-900 dark:text-white">
