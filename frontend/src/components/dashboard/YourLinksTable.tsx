@@ -306,7 +306,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
                           onClick={() => onVisit(item)}
                           className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
                         >
-                          /{displayPath}
+                          /redirect/{displayPath}
                         </button>
                         <button
                           type="button"

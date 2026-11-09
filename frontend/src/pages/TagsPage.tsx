@@ -116,7 +116,7 @@ export const TagsPage: React.FC = () => {
   };
 
   const handleCopyLink = (shortId: string, customPath?: string) => {
-    const full = `${API_BASE_URL}/${customPath || shortId}`;
+    const full = `${API_BASE_URL}/redirect/${customPath || shortId}`;
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);

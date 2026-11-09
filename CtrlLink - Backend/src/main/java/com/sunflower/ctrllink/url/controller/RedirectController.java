@@ -67,11 +67,17 @@ public class RedirectController {
         while (clean.endsWith("/")) {
             clean = clean.substring(0, clean.length() - 1);
         }
+        if (clean.toLowerCase().startsWith("redirect/")) {
+            clean = clean.substring("redirect/".length());
+            while (clean.startsWith("/")) {
+                clean = clean.substring(1);
+            }
+        }
         return clean;
     }
 
     @Operation(summary = "Redirect or Social Preview", description = "Handles the core redirection logic for root and nested custom folder paths. Detects social media bots and returns OG tags for rich previews. Otherwise, redirects to the target URL (or password challenge).")
-    @GetMapping("/{*path}")
+    @GetMapping({"/redirect/{*path}", "/{*path}"})
     public ResponseEntity<?> redirect(@PathVariable String path, HttpServletRequest request) {
 
         String targetPath = cleanPath(path);
