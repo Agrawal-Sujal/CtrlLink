@@ -337,7 +337,11 @@ cp .env.example .env
 | `POSTGRES_USER` | `ctrllink_user` | PostgreSQL username |
 | `POSTGRES_PASSWORD` | `your_secret_password` | PostgreSQL password |
 | `POSTGRES_PORT` | `5432` | Host port for PostgreSQL |
-| `REDIS_PORT` | `6379` | Host port for Redis |
+| `REDIS_HOST` | `redis` or Upstash host | Hostname for Redis (`redis` in Docker, `xxx.upstash.io` for Upstash) |
+| `REDIS_PORT` | `6379` | Port for Redis |
+| `REDIS_PASSWORD` | *(empty)* or Upstash password | Redis authentication password |
+| `REDIS_USERNAME` | `default` | Redis ACL username |
+| `REDIS_SSL_ENABLED` | `false` (or `true` for Upstash) | Whether to enable SSL/TLS for Redis connections |
 | `APP_BASE_URL` | `http://localhost:8080` | Public base URL for generated short links |
 | `APP_FRONTEND_URL` | `http://localhost:3000` | Frontend web URL for redirects and email links |
 | `APP_ALLOWED_ORIGIN`| `http://localhost:3000` | CORS allowed origin |
