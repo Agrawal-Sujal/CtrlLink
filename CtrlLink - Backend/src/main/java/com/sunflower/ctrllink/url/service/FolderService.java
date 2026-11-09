@@ -158,7 +158,8 @@ public class FolderService {
         return Optional.of(String.join("_", keys));
     }
 
-    private Long getOrCreateWordId(String word) {
+    private Long getOrCreateWordId(String rawWord) {
+        String word = rawWord.trim().toLowerCase();
         // 1. Check local cache
         Long cachedLocal = localWordCache.get(word);
         if (cachedLocal != null) {
@@ -200,7 +201,9 @@ public class FolderService {
         }
     }
 
-    private Optional<Long> findWordId(String word) {
+    private Optional<Long> findWordId(String rawWord) {
+        if (rawWord == null || rawWord.isBlank()) return Optional.empty();
+        String word = rawWord.trim().toLowerCase();
         Long cachedLocal = localWordCache.get(word);
         if (cachedLocal != null) {
             return Optional.of(cachedLocal);
