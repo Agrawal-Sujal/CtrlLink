@@ -14,7 +14,6 @@ import {
   Send,
   ArrowLeft,
   X,
-  ShieldCheck,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Button } from '../components/Button';
@@ -384,12 +383,6 @@ export const ProfilePage: React.FC = () => {
               </Button>
             </div>
           </form>
-
-          {/* Account Security Info Note */}
-          <div className="pt-4 border-t border-zinc-100 dark:border-white/[0.06] flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Your credentials are encrypted using industry-standard bcrypt and JWT tokens.</span>
-          </div>
         </div>
       </div>
     </DashboardLayout>
