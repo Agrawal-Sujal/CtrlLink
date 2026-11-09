@@ -43,7 +43,6 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
   // Default: DO NOT add any tag by default
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [draftNotice, setDraftNotice] = useState<string | null>(null);
 
   const handlePasteClipboard = async () => {
     try {
@@ -84,24 +83,6 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
     setExpiryDays(undefined);
     setTags([]);
     setTagInput('');
-    setDraftNotice(null);
-  };
-
-  const handleSaveDraft = () => {
-    localStorage.setItem(
-      'ctrllink_quick_shorten_draft',
-      JSON.stringify({
-        longUrl,
-        title,
-        customAlias,
-        password,
-        isExpiryEnabled,
-        expiryDays,
-        tags,
-      })
-    );
-    setDraftNotice('Draft saved successfully!');
-    setTimeout(() => setDraftNotice(null), 3000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -346,32 +327,15 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
           </div>
         )}
 
-        {/* Bottom Bar: Reset & Save Draft */}
-        <div className="flex items-center justify-between gap-3 pt-2 text-xs">
-          <div>
-            {draftNotice && (
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium text-[11px] animate-fade-in">
-                {draftNotice}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="px-3.5 py-1.5 rounded-lg text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 border border-blue-200/60 dark:border-blue-900/50 transition-colors cursor-pointer"
-            >
-              Save Draft
-            </button>
-          </div>
+        {/* Bottom Bar: Reset */}
+        <div className="flex items-center justify-end gap-3 pt-2 text-xs">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            Reset
+          </button>
         </div>
       </form>
     </div>

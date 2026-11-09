@@ -2,14 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
-  Bell,
   ChevronDown,
   User as UserIcon,
   LogOut,
   Tag,
   Link2,
   Menu,
-  Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -29,10 +27,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
   useEffect(() => {
@@ -42,12 +38,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         !profileMenuRef.current.contains(e.target as Node)
       ) {
         setIsProfileMenuOpen(false);
-      }
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(e.target as Node)
-      ) {
-        setIsNotificationOpen(false);
       }
     };
 
@@ -113,46 +103,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
       </form>
 
-      {/* Right: Notifications & User Profile */}
+      {/* Right: User Profile */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Notification Bell */}
-        <div className="relative" ref={notificationRef}>
-          <button
-            type="button"
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-[#0f1422]" />
-          </button>
-
-          {/* Notifications Dropdown Popover */}
-          {isNotificationOpen && (
-            <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 px-1">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Notifications
-                </span>
-                <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full">
-                  1 New
-                </span>
-              </div>
-              <div className="py-2 space-y-2">
-                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Real-Time Telemetry Active</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    High-throughput event streaming is active and tracking all clicks.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* User Profile Dropdown */}
         <div className="relative" ref={profileMenuRef}>
           <button
