@@ -21,14 +21,14 @@ services:
     networks:
       - ctrllink-network
 
-  # ── Redis Cache ───────────────────────────────────────────────────────────
+  # ── Redis Cache (Local Docker fallback; optional if using Upstash) ──────
   redis:
     image: redis:7-alpine
     container_name: ctrllink-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -51,6 +51,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+        required: false
     ports:
       - "8080:8080"
     environment:
@@ -59,8 +60,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_USERNAME: ${REDIS_USERNAME:-default}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_SSL_ENABLED: ${REDIS_SSL_ENABLED:-false}
       APP_BASE_URL: ${APP_BASE_URL}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL}
       APP_ALLOWED_ORIGIN: ${APP_ALLOWED_ORIGIN}
