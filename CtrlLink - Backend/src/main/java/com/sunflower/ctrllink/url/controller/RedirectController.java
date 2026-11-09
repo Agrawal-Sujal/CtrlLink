@@ -60,7 +60,7 @@ public class RedirectController {
 
     private String cleanPath(String rawPath) {
         if (rawPath == null) return "";
-        String clean = rawPath.trim().toLowerCase();
+        String clean = rawPath.trim();
         while (clean.startsWith("/")) {
             clean = clean.substring(1);
         }
@@ -80,29 +80,55 @@ public class RedirectController {
         }
 
         // Avoid intercepting internal endpoints if path pattern falls through
-        if (targetPath.startsWith("api/") || targetPath.startsWith("swagger-ui") ||
-            targetPath.startsWith("v3/") || targetPath.startsWith("actuator") ||
-            targetPath.equals("favicon.ico")) {
+        String lowerTargetPath = targetPath.toLowerCase();
+        if (lowerTargetPath.startsWith("api/") || lowerTargetPath.startsWith("swagger-ui") ||
+            lowerTargetPath.startsWith("v3/") || lowerTargetPath.startsWith("actuator") ||
+            lowerTargetPath.equals("favicon.ico")) {
             throw new NotFoundException("Endpoint not found");
         }
 
         log.debug("Redirect requested for path='{}' [ip={}]", targetPath, getClientIp(request));
 
-        String cacheKey = "url:entity:path:" + targetPath;
+        String[] segments = targetPath.split("/");
+        if (segments.length > 5) {
+            throw new NotFoundException("URL not found");
+        }
+
+        String terminalAlias = segments[segments.length - 1];
+        List<String> folderSegments = (segments.length > 1)
+                ? Arrays.stream(Arrays.copyOfRange(segments, 0, segments.length - 1))
+                        .map(s -> s.trim().toLowerCase())
+                        .toList()
+                : Collections.emptyList();
+
+        // Canonical path: lowercase folder segments + exact case terminal slug
+        String canonicalPath = folderSegments.isEmpty()
+                ? terminalAlias
+                : String.join("/", folderSegments) + "/" + terminalAlias;
+
+        String cacheKey = "url:entity:path:" + canonicalPath;
         Map<Object, Object> cached = redisTemplate.opsForHash().entries(cacheKey);
-        if (cached.isEmpty() && !targetPath.contains("/")) {
+        if (cached.isEmpty() && !canonicalPath.contains("/")) {
             // Also check legacy root cache key
-            cached = redisTemplate.opsForHash().entries("url:entity:" + targetPath);
+            cached = redisTemplate.opsForHash().entries("url:entity:" + canonicalPath);
+        }
+        // Fallback for custom aliases created in lowercase but accessed with mixed casing
+        if (cached.isEmpty() && !terminalAlias.equals(terminalAlias.toLowerCase())) {
+            String lowerPath = canonicalPath.toLowerCase();
+            cached = redisTemplate.opsForHash().entries("url:entity:path:" + lowerPath);
+            if (cached.isEmpty() && !lowerPath.contains("/")) {
+                cached = redisTemplate.opsForHash().entries("url:entity:" + lowerPath);
+            }
         }
 
         String longUrl;
         boolean hasPassword;
         String title;
-        String fullPath = targetPath;
+        String fullPath = canonicalPath;
 
         if (!cached.isEmpty()) {
             // Cache HIT — zero DB hit on hot path
-            log.trace("Redirect cache HIT for path='{}'", targetPath);
+            log.trace("Redirect cache HIT for path='{}'", canonicalPath);
             longUrl     = (String) cached.get("longUrl");
             hasPassword = "true".equals(cached.get("hasPassword"));
             title       = (String) cached.get("title");
@@ -114,48 +140,53 @@ public class RedirectController {
             String expiryStr = (String) cached.get("expiryTime");
             if (expiryStr != null && !expiryStr.isEmpty()
                     && LocalDateTime.parse(expiryStr).isBefore(LocalDateTime.now())) {
-                log.info("Redirect rejected: path='{}' has expired", targetPath);
+                log.info("Redirect rejected: path='{}' has expired", canonicalPath);
                 throw new GoneException("Short URL has expired");
             }
         } else {
             // Cache MISS — parse folder hierarchy and query database
-            log.debug("Redirect cache MISS for path='{}', querying database", targetPath);
-            String[] segments = targetPath.split("/");
-            if (segments.length > 5) {
-                throw new NotFoundException("URL not found");
-            }
+            log.debug("Redirect cache MISS for path='{}', querying database", canonicalPath);
 
             String folderPathKey = "";
-            String terminalAlias = segments[segments.length - 1];
-
-            if (segments.length > 1) {
-                List<String> folderSegments = Arrays.asList(Arrays.copyOfRange(segments, 0, segments.length - 1));
+            if (!folderSegments.isEmpty()) {
                 Optional<String> resolvedKeyOpt = folderService.resolveFolderPathKey(folderSegments);
                 if (resolvedKeyOpt.isEmpty()) {
-                    log.debug("Folder path does not exist for: '{}'", targetPath);
+                    log.debug("Folder path does not exist for: '{}'", canonicalPath);
                     throw new NotFoundException("URL not found");
                 }
                 folderPathKey = resolvedKeyOpt.get();
             }
 
-            UrlEntity entity = urlRepository.findByFolderPathKeyAndShortId(folderPathKey, terminalAlias)
-                    .or(() -> urlRepository.findByCustomPath(targetPath))
-                    .or(() -> (!targetPath.contains("/")) ? urlRepository.findByShortId(targetPath) : Optional.empty())
+            final String fKey = folderPathKey;
+            UrlEntity entity = urlRepository.findByFolderPathKeyAndShortId(fKey, terminalAlias)
+                    .or(() -> !terminalAlias.equals(terminalAlias.toLowerCase())
+                            ? urlRepository.findByFolderPathKeyAndShortId(fKey, terminalAlias.toLowerCase())
+                            : Optional.empty())
+                    .or(() -> urlRepository.findByCustomPath(canonicalPath))
+                    .or(() -> !canonicalPath.equals(canonicalPath.toLowerCase())
+                            ? urlRepository.findByCustomPath(canonicalPath.toLowerCase())
+                            : Optional.empty())
+                    .or(() -> (!canonicalPath.contains("/")) ? urlRepository.findByShortId(terminalAlias) : Optional.empty())
+                    .or(() -> (!canonicalPath.contains("/") && !terminalAlias.equals(terminalAlias.toLowerCase()))
+                            ? urlRepository.findByShortId(terminalAlias.toLowerCase()) : Optional.empty())
                     .orElseThrow(() -> new NotFoundException("URL not found"));
 
             if (entity.getExpiryTime() != null && entity.getExpiryTime().isBefore(LocalDateTime.now())) {
-                log.info("Redirect rejected: path='{}' has expired (from DB check)", targetPath);
+                log.info("Redirect rejected: path='{}' has expired (from DB check)", canonicalPath);
                 throw new GoneException("Short URL has expired");
             }
 
             longUrl     = entity.getLongUrl();
             hasPassword = entity.getPassword() != null;
             title       = entity.getTitle();
-            fullPath    = entity.getCustomPath() != null ? entity.getCustomPath() : targetPath;
+            fullPath    = entity.getCustomPath() != null ? entity.getCustomPath() : canonicalPath;
 
             cacheEntityForRedirect(cacheKey, entity);
-            if (!targetPath.contains("/")) {
-                cacheEntityForRedirect("url:entity:" + targetPath, entity);
+            if (entity.getCustomPath() != null && !entity.getCustomPath().equals(canonicalPath)) {
+                cacheEntityForRedirect("url:entity:path:" + entity.getCustomPath(), entity);
+            }
+            if (!canonicalPath.contains("/")) {
+                cacheEntityForRedirect("url:entity:" + canonicalPath, entity);
             }
         }
 

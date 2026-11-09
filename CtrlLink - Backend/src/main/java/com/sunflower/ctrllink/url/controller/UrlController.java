@@ -172,10 +172,16 @@ public class UrlController {
     }
 
     @Operation(summary = "Get link stats", description = "Returns click analytics and metadata for a specific short ID. Supports time ranges: '24h', '7d', and 'all'.")
-    @GetMapping("/stats/{shortId}")
+    @GetMapping("/stats/{*shortId}")
     public UrlStatsResponseDto getStats(
             @PathVariable String shortId,
             @RequestParam(defaultValue = "all") String range) {
+
+        String tempId = shortId != null ? shortId.trim() : "";
+        while (tempId.startsWith("/")) {
+            tempId = tempId.substring(1);
+        }
+        final String cleanId = tempId;
         
         long lookbackMs = switch (range) {
             case "24h" -> 86400000L;
@@ -183,8 +189,8 @@ public class UrlController {
             case "30d" -> 2592000000L;
             default -> 0L; // All time
         };
-        log.debug("Stats query for shortId={} [range={}]", shortId, range);
-        return urlService.getStats(shortId, lookbackMs);
+        log.debug("Stats query for shortId={} [range={}]", cleanId, range);
+        return urlService.getStats(cleanId, lookbackMs);
     }
 
     @Operation(summary = "Delete a short URL", description = "Permanently removes a short link from the system.", security = @SecurityRequirement(name = "Bearer Authentication"))
