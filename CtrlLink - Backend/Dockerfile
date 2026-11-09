@@ -5,6 +5,7 @@ WORKDIR /build
 
 # Copy pom.xml and cache dependencies
 COPY pom.xml .
+ENV MAVEN_OPTS="-Xmx1024m -XX:+UseSerialGC"
 RUN mvn dependency:go-offline -B || true
 
 # Copy source code and build production jar
