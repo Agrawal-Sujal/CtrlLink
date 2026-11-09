@@ -8,20 +8,20 @@ import {
   Folder,
   Eye,
   EyeOff,
-  Info,
   X,
   ArrowRight,
   Loader2,
+  Type,
 } from 'lucide-react';
 
 interface QuickShortenCardProps {
   onShorten: (data: {
     longUrl: string;
+    title?: string;
     customAlias?: string;
     password?: string;
     expiryDays?: number;
     tags?: string[];
-    useAutoTitle: boolean;
   }) => Promise<void>;
   isCreating: boolean;
   availableTags?: string[];
@@ -34,14 +34,15 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
 }) => {
   const [showOptions, setShowOptions] = useState(true);
   const [longUrl, setLongUrl] = useState('');
+  const [title, setTitle] = useState('');
   const [customAlias, setCustomAlias] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isExpiryEnabled, setIsExpiryEnabled] = useState(false);
   const [expiryDays, setExpiryDays] = useState<number | undefined>(undefined);
+  // Default: DO NOT add any tag by default
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [useAutoTitle, setUseAutoTitle] = useState(false);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
 
   const handlePasteClipboard = async () => {
@@ -76,13 +77,13 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
 
   const handleReset = () => {
     setLongUrl('');
+    setTitle('');
     setCustomAlias('');
     setPassword('');
     setIsExpiryEnabled(false);
     setExpiryDays(undefined);
     setTags([]);
     setTagInput('');
-    setUseAutoTitle(false);
     setDraftNotice(null);
   };
 
@@ -91,12 +92,12 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
       'ctrllink_quick_shorten_draft',
       JSON.stringify({
         longUrl,
+        title,
         customAlias,
         password,
         isExpiryEnabled,
         expiryDays,
         tags,
-        useAutoTitle,
       })
     );
     setDraftNotice('Draft saved successfully!');
@@ -109,11 +110,11 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
 
     await onShorten({
       longUrl: longUrl.trim(),
+      title: title.trim() || undefined,
       customAlias: customAlias.trim() || undefined,
       password: password.trim() || undefined,
       expiryDays: isExpiryEnabled ? expiryDays : undefined,
       tags: tags.length > 0 ? tags : undefined,
-      useAutoTitle,
     });
   };
 
@@ -192,8 +193,25 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
 
         {/* Expandable Options Grid */}
         {showOptions && (
-          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-200">
-            {/* 1. Custom Alias / Folder Path */}
+          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 animate-in fade-in duration-200">
+            {/* 1. Add Title */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Add Title
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="e.g. Portfolio Website"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full text-xs sm:text-sm py-2 pl-3 pr-8 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-blue-500"
+                />
+                <Type className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* 2. Custom Alias / Folder Path */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Custom Alias / Folder Path
@@ -210,7 +228,7 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
               </div>
             </div>
 
-            {/* 2. Password Protection */}
+            {/* 3. Password Protection */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Password Protection
@@ -238,7 +256,7 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
               </div>
             </div>
 
-            {/* 3. Auto-Expiry (TTL) with Toggle */}
+            {/* 4. Auto-Expiry (TTL) with Toggle */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <button
@@ -286,7 +304,7 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
               </select>
             </div>
 
-            {/* 4. Tags with Pills */}
+            {/* 5. Tags with Pills (Defaults to empty) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Tags
@@ -328,48 +346,17 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
           </div>
         )}
 
-        {/* Bottom Bar: Smart AI Title Fetch & Reset / Save Draft */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs">
-          {/* Smart AI Title Toggle */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setUseAutoTitle(!useAutoTitle)}
-              className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                useAutoTitle
-                  ? 'bg-blue-600'
-                  : 'bg-slate-200 dark:bg-slate-700'
-              }`}
-              role="switch"
-              aria-checked={useAutoTitle}
-            >
-              <span
-                className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  useAutoTitle ? 'translate-x-3.5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-            <span
-              onClick={() => setUseAutoTitle(!useAutoTitle)}
-              className="font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none"
-            >
-              Smart AI Title Fetch
-            </span>
-            <div className="relative group">
-              <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover:block w-48 p-2 rounded-lg bg-slate-900 text-white text-[10px] leading-tight z-30 shadow-lg pointer-events-none">
-                Automatically fetches title and summary metadata using AI.
-              </div>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 ml-auto">
+        {/* Bottom Bar: Reset & Save Draft */}
+        <div className="flex items-center justify-between gap-3 pt-2 text-xs">
+          <div>
             {draftNotice && (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium text-[11px] animate-fade-in">
                 {draftNotice}
               </span>
             )}
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleReset}

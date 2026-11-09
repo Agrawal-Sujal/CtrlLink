@@ -10,6 +10,7 @@ import {
   Trash2,
   Loader2,
   Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { UrlStatsResponse, TagSummary } from '../../types/url';
 
@@ -52,7 +53,8 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
   onDelete,
   onVisit,
 }) => {
-  const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1);
+  // Decide total pages purely on the basis of total links
+  const totalPages = Math.ceil(totalCount / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + links.length, totalCount);
 
@@ -126,7 +128,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
     }
   };
 
-  // Build page buttons list (up to 5 pages around current)
+  // Build page buttons list strictly based on totalPages
   const renderPaginationButtons = () => {
     if (totalPages <= 1) return null;
 
@@ -227,7 +229,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
           <thead>
             <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider">
               <th className="pb-3 pr-4">SHORT URL</th>
-              <th className="pb-3 px-4">TITLE</th>
+              <th className="pb-3 px-4">TITLE &amp; DESTINATION</th>
               <th className="pb-3 px-4">TAGS</th>
               <th className="pb-3 px-4">CLICKS</th>
               <th className="pb-3 px-4">CREATED</th>
@@ -295,9 +297,21 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
                       </div>
                     </td>
 
-                    {/* TITLE */}
-                    <td className="py-3.5 px-4 max-w-[200px] truncate text-slate-800 dark:text-slate-200">
-                      {item.title || 'Untitled Link'}
+                    {/* TITLE & DESTINATION URL */}
+                    <td className="py-3.5 px-4 max-w-[280px]">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                        {item.title || 'Untitled Link'}
+                      </div>
+                      <a
+                        href={item.longUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 truncate flex items-center gap-1 mt-0.5"
+                        title={item.longUrl}
+                      >
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{item.longUrl}</span>
+                      </a>
                     </td>
 
                     {/* TAGS */}
@@ -372,7 +386,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
         </table>
       </div>
 
-      {/* Footer: Pagination */}
+      {/* Footer: Pagination decided strictly on total links */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div>
           {totalCount > 0
@@ -380,7 +394,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
             : '0 links'}
         </div>
 
-        {/* Pagination controls */}
+        {/* Pagination controls only if more than 1 page */}
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
             <button

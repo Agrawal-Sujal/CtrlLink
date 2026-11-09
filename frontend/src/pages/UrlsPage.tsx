@@ -22,7 +22,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 export const UrlsPage: React.FC = () => {
   const { user } = useAuth();
 
-  // Links & Tags state from backend
+  // Links & Tags state strictly from backend
   const [links, setLinks] = useState<UrlStatsResponse[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [allUserTags, setAllUserTags] = useState<TagSummary[]>([]);
@@ -32,7 +32,7 @@ export const UrlsPage: React.FC = () => {
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const pageSize = 10;
 
-  // Timeline analytics state fetched from backend
+  // Timeline analytics state from backend
   const [timelineRange, setTimelineRange] = useState<'7d' | '30d' | '90d'>('7d');
   const [timeSeriesData, setTimeSeriesData] = useState<Record<string, number>>({});
   const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
@@ -87,10 +87,9 @@ export const UrlsPage: React.FC = () => {
     [searchQuery, selectedTag, currentPage, pageSize]
   );
 
-  // 3. Fetch real timeline analytics from backend for links with clicks
+  // 3. Fetch real timeline analytics from backend if links exist
   const fetchTimelineData = useCallback(
     async (currentLinks: UrlStatsResponse[], range: '7d' | '30d' | '90d') => {
-      // Find links that have clicks or recent activity
       const activeLinks = currentLinks.filter((l) => (l.clickCount || 0) > 0);
       if (activeLinks.length === 0) {
         setTimeSeriesData({});
@@ -158,11 +157,11 @@ export const UrlsPage: React.FC = () => {
 
   const handleShorten = async (data: {
     longUrl: string;
+    title?: string;
     customAlias?: string;
     password?: string;
     expiryDays?: number;
     tags?: string[];
-    useAutoTitle: boolean;
   }) => {
     setAlert(null);
     let cleanUrl = data.longUrl.trim();
@@ -175,11 +174,11 @@ export const UrlsPage: React.FC = () => {
     try {
       const res = await urlApi.shorten({
         longUrl: cleanUrl,
+        title: data.title,
         customAlias: data.customAlias,
         password: data.password,
         expiryDays: data.expiryDays,
         tags: data.tags,
-        useAutoTitle: data.useAutoTitle,
       });
 
       // Confetti celebration
@@ -252,22 +251,9 @@ export const UrlsPage: React.FC = () => {
   const avgClicks =
     totalCount > 0 ? (totalClicks / totalCount).toFixed(1) : '0';
 
-  // Real growth and counts strictly from backend data
-  const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const linksCreatedLast7d = links.filter(
-    (l) => new Date(l.createdAt).getTime() >= sevenDaysAgoMs
-  ).length;
-
-  const clicksLast7d = useMemo(() => {
-    let sum = 0;
-    const now = new Date();
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const iso = d.toISOString().split('T')[0];
-      sum += timeSeriesData[iso] || 0;
-    }
-    return sum;
+  // Only show click timeline if genuine data exists from backend
+  const hasTimelineData = useMemo(() => {
+    return Object.values(timeSeriesData).some((clicks) => clicks > 0);
   }, [timeSeriesData]);
 
   return (
@@ -285,44 +271,50 @@ export const UrlsPage: React.FC = () => {
         />
       )}
 
-      {/* 1. Header greeting & 4 Metric Cards */}
+      {/* 1. Header greeting & 4 Metric Cards (percentage increases removed) */}
       <StatCardsRow
         userName={user?.name || user?.email?.split('@')[0] || 'User'}
         totalLinks={totalCount}
         totalClicks={totalClicks}
         totalProtected={totalProtected}
         avgClicks={avgClicks}
-        linksCreatedLast7d={linksCreatedLast7d}
-        clicksLast7d={clicksLast7d}
       />
 
-      {/* 2. Quick Shorten Box */}
+      {/* 2. Quick Shorten Box (Add Title included, no default tags, AI title toggle removed) */}
       <QuickShortenCard
         onShorten={handleShorten}
         isCreating={isCreating}
         availableTags={allUserTags.map((t) => t.tag)}
       />
 
-      {/* 3. Middle Two-Column Grid: Clicks by Short URL & Click Timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ClicksByShortUrlCard
-          urls={links}
-          onSelectUrl={(shortId) => setAnalyticsShortId(shortId)}
-          onViewAll={() => {
-            const el = document.getElementById('your-links');
-            el?.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
+      {/* 3. Middle Section: Clicks by Short URL & Click Timeline (only if real data exists) */}
+      {links.length > 0 && (
+        <div
+          className={`grid gap-6 ${
+            hasTimelineData ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+          }`}
+        >
+          <ClicksByShortUrlCard
+            urls={links}
+            onSelectUrl={(shortId) => setAnalyticsShortId(shortId)}
+            onViewAll={() => {
+              const el = document.getElementById('your-links');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
 
-        <ClickTimelineCard
-          timeSeriesData={timeSeriesData}
-          range={timelineRange}
-          onRangeChange={setTimelineRange}
-          isLoading={isLoadingTimeline}
-        />
-      </div>
+          {hasTimelineData && (
+            <ClickTimelineCard
+              timeSeriesData={timeSeriesData}
+              range={timelineRange}
+              onRangeChange={setTimelineRange}
+              isLoading={isLoadingTimeline}
+            />
+          )}
+        </div>
+      )}
 
-      {/* 4. Your Links Table */}
+      {/* 4. Your Links Table (with destination link & pagination decided strictly on total links) */}
       <YourLinksTable
         links={links}
         totalCount={totalCount}

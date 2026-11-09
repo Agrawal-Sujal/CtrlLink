@@ -4,7 +4,6 @@ import {
   MousePointerClick,
   Lock,
   Zap,
-  TrendingUp,
 } from 'lucide-react';
 
 interface StatCardsRowProps {
@@ -13,8 +12,6 @@ interface StatCardsRowProps {
   totalClicks: number;
   totalProtected: number;
   avgClicks: string;
-  linksCreatedLast7d?: number;
-  clicksLast7d?: number;
 }
 
 export const StatCardsRow: React.FC<StatCardsRowProps> = ({
@@ -23,8 +20,6 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
   totalClicks,
   totalProtected,
   avgClicks,
-  linksCreatedLast7d = 0,
-  clicksLast7d = 0,
 }) => {
   // Determine time of day greeting
   const getGreeting = () => {
@@ -35,9 +30,6 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
   };
 
   const firstName = userName ? userName.split(' ')[0] : 'User';
-
-  const protectedPercentage =
-    totalLinks > 0 ? Math.round((totalProtected / totalLinks) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -69,7 +61,7 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
         </div>
       </div>
 
-      {/* 4 Metric Stat Cards */}
+      {/* 4 Metric Stat Cards without any percentage increases */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. TOTAL LINKS */}
         <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -82,19 +74,9 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
             </div>
           </div>
 
-          <div className="mt-2 space-y-1">
+          <div className="mt-3">
             <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {totalLinks.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {linksCreatedLast7d > 0
-                  ? `+${linksCreatedLast7d} in last 7d`
-                  : totalLinks > 0
-                  ? 'All active links'
-                  : 'No links created yet'}
-              </span>
             </div>
           </div>
         </div>
@@ -110,19 +92,9 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
             </div>
           </div>
 
-          <div className="mt-2 space-y-1">
+          <div className="mt-3">
             <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {totalClicks.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {clicksLast7d > 0
-                  ? `+${clicksLast7d.toLocaleString()} in last 7d`
-                  : totalClicks > 0
-                  ? 'Synced in real-time'
-                  : '0 clicks recorded'}
-              </span>
             </div>
           </div>
         </div>
@@ -138,17 +110,9 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
             </div>
           </div>
 
-          <div className="mt-2 space-y-1">
+          <div className="mt-3">
             <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {totalProtected.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {totalProtected > 0
-                  ? `${protectedPercentage}% of your links`
-                  : 'None password-protected'}
-              </span>
             </div>
           </div>
         </div>
@@ -164,17 +128,9 @@ export const StatCardsRow: React.FC<StatCardsRowProps> = ({
             </div>
           </div>
 
-          <div className="mt-2 space-y-1">
+          <div className="mt-3">
             <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {avgClicks}
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {totalLinks > 0
-                  ? `Across ${totalLinks} ${totalLinks === 1 ? 'link' : 'links'}`
-                  : '0 avg per link'}
-              </span>
             </div>
           </div>
         </div>
