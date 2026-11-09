@@ -60,8 +60,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/profile/**").permitAll()
 
                         // Public link redirection (root and nested folder paths)
-                        .requestMatchers(HttpMethod.GET, "/{shortId}", "/{*path}").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/{shortId}", "/{*path}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/redirect/**", "/{shortId}", "/{*path}").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/redirect/**", "/{shortId}", "/{*path}").permitAll()
 
                         // Everything else needs auth
                         .anyRequest().authenticated()

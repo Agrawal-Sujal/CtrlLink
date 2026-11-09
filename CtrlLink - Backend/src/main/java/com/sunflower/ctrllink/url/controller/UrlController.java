@@ -129,7 +129,7 @@ public class UrlController {
                 entity.getShortId(),
                 displayPath,
                 entity.getFolderPathKey(),
-                baseUrl + "/" + displayPath,
+                baseUrl + "/redirect/" + displayPath,
                 entity.getLongUrl(),
                 entity.getCreatedAt(),
                 entity.getTitle(),

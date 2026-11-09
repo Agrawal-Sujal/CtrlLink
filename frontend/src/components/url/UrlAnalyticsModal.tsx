@@ -128,7 +128,7 @@ export const UrlAnalyticsModal: React.FC<UrlAnalyticsModalProps> = ({
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${API_BASE_URL}/${shortId}`);
+    navigator.clipboard.writeText(`${API_BASE_URL}/redirect/${stats?.customPath || shortId}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

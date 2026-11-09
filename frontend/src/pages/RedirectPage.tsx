@@ -4,11 +4,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 
 export const RedirectPage: React.FC = () => {
   useLayoutEffect(() => {
-    // Extract full path after host, stripping leading slashes and any /r/ prefix
-    const path = window.location.pathname.replace(/^\/r\//, '').replace(/^\//, '');
+    // Extract full path after host, stripping leading slashes and any /r/ or /redirect/ prefix
+    const path = window.location.pathname
+      .replace(/^\/r\//, '')
+      .replace(/^\/redirect\//, '')
+      .replace(/^\//, '');
     if (path) {
       // Instantly hand off to backend 302 redirect without rendering any intermediate screen
-      window.location.replace(`${API_BASE_URL}/${path}`);
+      window.location.replace(`${API_BASE_URL}/redirect/${path}`);
     }
   }, []);
 
