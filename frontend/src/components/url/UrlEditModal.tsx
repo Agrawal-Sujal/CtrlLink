@@ -76,7 +76,7 @@ export const UrlEditModal: React.FC<UrlEditModalProps> = ({
           <div>
             <h2 className="text-lg font-bold">Edit Link Settings</h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Update title, tags, or password for <span className="font-mono text-indigo-500">/{url.shortId}</span>
+              Update title, tags, or password for <span className="font-mono text-indigo-500">/{url.customPath || url.shortId}</span>
             </p>
           </div>
           <button

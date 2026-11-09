@@ -6,6 +6,8 @@ import java.util.Set;
 public class ShortenResponseDto {
 
     private String shortId;
+    private String customPath;
+    private String folderPathKey;
     private String shortUrl;
     private String longUrl;
     private LocalDateTime createdAt;
@@ -15,8 +17,17 @@ public class ShortenResponseDto {
     private String category;
     private Set<String> tags;
 
-    public ShortenResponseDto(String shortId, String shortUrl, String longUrl, LocalDateTime createdAt, String title, boolean passwordProtected, String password, String category, Set<String> tags) {
+    public ShortenResponseDto(String shortId, String shortUrl, String longUrl, LocalDateTime createdAt,
+                              String title, boolean passwordProtected, String password, String category, Set<String> tags) {
+        this(shortId, shortId, "", shortUrl, longUrl, createdAt, title, passwordProtected, password, category, tags);
+    }
+
+    public ShortenResponseDto(String shortId, String customPath, String folderPathKey, String shortUrl, String longUrl,
+                              LocalDateTime createdAt, String title, boolean passwordProtected, String password,
+                              String category, Set<String> tags) {
         this.shortId = shortId;
+        this.customPath = customPath != null ? customPath : shortId;
+        this.folderPathKey = folderPathKey != null ? folderPathKey : "";
         this.shortUrl = shortUrl;
         this.longUrl = longUrl;
         this.createdAt = createdAt;
@@ -35,18 +46,39 @@ public class ShortenResponseDto {
         return shortId;
     }
 
-    public String getShortUrl() {return shortUrl;}
+    public String getCustomPath() {
+        return customPath;
+    }
 
-    public String getLongUrl()        { return longUrl; }
+    public String getFolderPathKey() {
+        return folderPathKey;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public String getShortUrl() {
+        return shortUrl;
+    }
 
-    public boolean isPasswordProtected() { return passwordProtected; }
+    public String getLongUrl() {
+        return longUrl;
+    }
 
-    public String getPassword() { return password; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 
-    public String getCategory() { return category; }
-    
-    public Set<String> getTags() { return tags; }
+    public boolean isPasswordProtected() {
+        return passwordProtected;
+    }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public Set<String> getTags() {
+        return tags;
+    }
 }

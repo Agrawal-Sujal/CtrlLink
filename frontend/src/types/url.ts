@@ -10,6 +10,8 @@ export interface ShortenRequest {
 
 export interface ShortenResponse {
   shortId: string;
+  customPath?: string;
+  folderPathKey?: string;
   shortUrl: string;
   longUrl: string;
   createdAt: string;
@@ -22,6 +24,8 @@ export interface ShortenResponse {
 
 export interface UrlStatsResponse {
   shortId: string;
+  customPath?: string;
+  folderPathKey?: string;
   longUrl: string;
   clickCount: number;
   lastAccessedTime?: string;

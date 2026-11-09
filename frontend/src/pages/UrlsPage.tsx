@@ -213,11 +213,12 @@ export const UrlsPage: React.FC = () => {
     }
   };
 
-  const handleCopyLink = (shortId: string, shortUrl?: string) => {
+  const handleCopyLink = (shortId: string, shortUrl?: string, customPath?: string) => {
+    const displayPath = customPath || shortId;
     const full =
       shortUrl && !shortUrl.includes('/r/')
         ? shortUrl
-        : `${API_BASE_URL}/${shortId}`;
+        : `${API_BASE_URL}/${displayPath}`;
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);
@@ -346,7 +347,7 @@ export const UrlsPage: React.FC = () => {
                 {/* Direct quick badges */}
                 {customAlias && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[11px] font-mono border border-indigo-500/20">
-                    alias: /{customAlias}
+                    path: /{customAlias.replace(/^\//, '')}
                   </span>
                 )}
                 {password && (
@@ -388,12 +389,12 @@ export const UrlsPage: React.FC = () => {
                 />
 
                 <Input
-                  label="Custom Alias"
+                  label="Custom Alias or Folder Path"
                   type="text"
-                  placeholder="e.g. summer-launch"
+                  placeholder="e.g. summer-launch or youtube/videos/programming"
                   value={customAlias}
                   onChange={(e) => setCustomAlias(e.target.value)}
-                  helperText="3-20 lowercase alphanumeric characters"
+                  helperText="Up to 5 path segments. Add a trailing slash (e.g. youtube/videos/) to auto-generate slug."
                 />
 
                 <Input
@@ -681,7 +682,7 @@ export const UrlsPage: React.FC = () => {
                                 className="font-bold text-zinc-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate block text-left w-full cursor-pointer"
                                 title="Open destination URL"
                               >
-                                {link.title || `/${link.shortId}`}
+                                {link.title || `/${link.customPath || link.shortId}`}
                               </button>
 
                               <div className="flex items-center gap-1.5 font-mono text-xs text-indigo-600 dark:text-indigo-400">
@@ -691,11 +692,11 @@ export const UrlsPage: React.FC = () => {
                                   className="truncate hover:underline text-left cursor-pointer"
                                   title="Click to visit destination"
                                 >
-                                  /{link.shortId}
+                                  /{link.customPath || link.shortId}
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleCopyLink(link.shortId)}
+                                  onClick={() => handleCopyLink(link.shortId, undefined, link.customPath)}
                                   className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-indigo-500 cursor-pointer"
                                   title="Copy short link"
                                 >
@@ -800,7 +801,8 @@ export const UrlsPage: React.FC = () => {
                               onClick={() =>
                                 setSuccessModalData({
                                   shortId: link.shortId,
-                                  shortUrl: `${API_BASE_URL}/${link.shortId}`,
+                                  customPath: link.customPath,
+                                  shortUrl: `${API_BASE_URL}/${link.customPath || link.shortId}`,
                                   longUrl: link.longUrl,
                                   createdAt: link.createdAt,
                                   title: link.title,

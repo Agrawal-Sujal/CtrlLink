@@ -13,11 +13,7 @@ public class ShortenRequestDto {
     )
     private String longUrl;
 
-    @Size(min = 3, max = 20, message = "Custom alias must be 3-20 characters")
-    @Pattern(
-            regexp = "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-            message = "Alias must use lowercase letters, numbers, or hyphens. Cannot start/end with hyphen"
-    )
+    @Size(max = 250, message = "Custom alias/path cannot exceed 250 characters")
     private String customAlias;
 
     @Min(value = 1, message = "Expiry must be at least 1 day")

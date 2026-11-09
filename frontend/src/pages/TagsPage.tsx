@@ -115,8 +115,8 @@ export const TagsPage: React.FC = () => {
     }
   };
 
-  const handleCopyLink = (shortId: string) => {
-    const full = `${API_BASE_URL}/${shortId}`;
+  const handleCopyLink = (shortId: string, customPath?: string) => {
+    const full = `${API_BASE_URL}/${customPath || shortId}`;
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);
@@ -549,7 +549,7 @@ export const TagsPage: React.FC = () => {
                             className="font-bold text-sm text-zinc-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate block text-left cursor-pointer"
                             title="Visit destination"
                           >
-                            {link.title || `/${link.shortId}`}
+                            {link.title || `/${link.customPath || link.shortId}`}
                           </button>
 
                           <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-indigo-600 dark:text-indigo-400">
@@ -558,12 +558,12 @@ export const TagsPage: React.FC = () => {
                               onClick={() => handleVisitLink(link)}
                               className="hover:underline cursor-pointer"
                             >
-                              /{link.shortId}
+                              /{link.customPath || link.shortId}
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleCopyLink(link.shortId)}
+                              onClick={() => handleCopyLink(link.shortId, link.customPath)}
                               className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-indigo-500 cursor-pointer"
                               title="Copy short link"
                             >

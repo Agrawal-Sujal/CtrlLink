@@ -40,18 +40,29 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No sessions
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // Public auth & documentation
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/{shortId}").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health","/actuator/metrics/*").permitAll()
+
+                        // Authenticated API endpoints (must precede generic wildcards)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/profile/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/profile/settings").authenticated()
+                        .requestMatchers("/api/v1/url/my-links", "/api/v1/url/tags", "/api/v1/url/reorder", "/api/v1/url/bulk-delete").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/url/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/url/**").authenticated()
+
+                        // Public API endpoints
                         .requestMatchers(HttpMethod.POST, "/api/v1/url/shorten").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/url/stats/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/url/qr/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/url/resolve/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/portfolio/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/profile/me").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/profile/settings").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/profile/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health","/actuator/metrics/*").permitAll()
+
+                        // Public link redirection (root and nested folder paths)
+                        .requestMatchers(HttpMethod.GET, "/{shortId}", "/{*path}").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/{shortId}", "/{*path}").permitAll()
+
                         // Everything else needs auth
                         .anyRequest().authenticated()
                 )

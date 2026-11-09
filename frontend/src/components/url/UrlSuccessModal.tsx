@@ -18,6 +18,7 @@ import { Button } from '../Button';
 interface UrlSuccessModalProps {
   url: {
     shortId: string;
+    customPath?: string;
     shortUrl: string;
     longUrl: string;
     title?: string;
@@ -49,7 +50,7 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
   const displayShortUrl =
     url.shortUrl && !url.shortUrl.includes('/r/')
       ? url.shortUrl
-      : `${API_BASE_URL}/${url.shortId}`;
+      : `${API_BASE_URL}/${url.customPath || url.shortId}`;
 
   const handleCopyShort = () => {
     navigator.clipboard.writeText(displayShortUrl);
