@@ -30,7 +30,7 @@ export const Input: React.FC<InputProps> = ({
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300"
+          className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
         >
           {label}
         </label>
@@ -38,7 +38,7 @@ export const Input: React.FC<InputProps> = ({
 
       <div className="relative rounded-xl">
         {leftIcon && (
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-500">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
             {leftIcon}
           </div>
         )}
@@ -46,16 +46,16 @@ export const Input: React.FC<InputProps> = ({
         <input
           id={inputId}
           type={effectiveType}
-          className={`w-full rounded-xl text-sm transition-all duration-200 outline-hidden
-            bg-white dark:bg-[#121215]
-            text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500
+          className={`w-full rounded-xl text-sm transition-all duration-150 outline-hidden
+            bg-slate-50/70 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-900
+            text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500
             border ${
               error
-                ? 'border-rose-500 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-                : 'border-zinc-200 dark:border-white/[0.1] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-indigo-400 dark:focus:ring-indigo-400/20'
+                ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+                : 'border-slate-200 dark:border-slate-800 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 dark:focus:border-blue-500 dark:focus:ring-blue-500/20'
             }
             py-2.5 ${leftIcon ? 'pl-10' : 'pl-3.5'} ${isPassword ? 'pr-10' : 'pr-3.5'}
-            shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.18] ${className}`}
+            shadow-xs hover:border-slate-300 dark:hover:border-slate-700 ${className}`}
           {...props}
         />
 
@@ -63,7 +63,7 @@ export const Input: React.FC<InputProps> = ({
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 focus:outline-hidden cursor-pointer"
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 focus:outline-hidden cursor-pointer"
             tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
@@ -77,7 +77,7 @@ export const Input: React.FC<InputProps> = ({
           {error}
         </p>
       ) : helperText ? (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{helperText}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helperText}</p>
       ) : null}
     </div>
   );

@@ -20,7 +20,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }
-    return 'dark'; // Default to a gorgeous modern dark theme for developer-centric URL shortener
+    return 'light'; // Clean light theme matching the new CtrlLink design language
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');

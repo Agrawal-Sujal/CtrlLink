@@ -24,23 +24,23 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({
   const styles = {
     success: {
       container:
-        'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/20 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300',
+        'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300',
       icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />,
     },
     error: {
       container:
-        'bg-rose-500/10 dark:bg-rose-950/30 border-rose-500/20 dark:border-rose-500/30 text-rose-800 dark:text-rose-300',
+        'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300',
       icon: <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />,
     },
     warning: {
       container:
-        'bg-amber-500/10 dark:bg-amber-950/30 border-amber-500/20 dark:border-amber-500/30 text-amber-800 dark:text-amber-300',
+        'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300',
       icon: <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />,
     },
     info: {
       container:
-        'bg-indigo-500/10 dark:bg-indigo-950/30 border-indigo-500/20 dark:border-indigo-500/30 text-indigo-800 dark:text-indigo-300',
-      icon: <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />,
+        'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40 text-blue-800 dark:text-blue-300',
+      icon: <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />,
     },
   };
 

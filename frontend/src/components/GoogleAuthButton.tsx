@@ -43,7 +43,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   };
 
   return (
-    <div className="w-full flex justify-center">
+    <div className="w-full flex justify-center overflow-hidden rounded-xl shadow-2xs">
       <GoogleLogin
         onSuccess={handleSuccess}
         onError={handleError}

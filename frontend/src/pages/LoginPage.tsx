@@ -20,6 +20,7 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
@@ -62,7 +63,7 @@ export const LoginPage: React.FC = () => {
   return (
     <AuthLayout
       title="Welcome Back"
-      subtitle="Sign in to your CtrlLink account to manage your links &amp; analytics."
+      subtitle="Sign in to your CtrlLink account to manage your links &amp; telemetry."
       badge="Secure Access"
     >
       <div className="space-y-5">
@@ -84,7 +85,8 @@ export const LoginPage: React.FC = () => {
               error.toLowerCase().includes('verif')
                 ? {
                     label: 'Resend Verification Email',
-                    onClick: () => navigate(`/resend-verification?email=${encodeURIComponent(email)}`),
+                    onClick: () =>
+                      navigate(`/resend-verification?email=${encodeURIComponent(email)}`),
                   }
                 : undefined
             }
@@ -93,24 +95,22 @@ export const LoginPage: React.FC = () => {
 
         {/* Google Login Section */}
         <div className="space-y-3">
-          <GoogleAuthButton
-            onErrorCallback={(msg) => setError(msg)}
-          />
+          <GoogleAuthButton onErrorCallback={(msg) => setError(msg)} />
 
           <div className="relative flex items-center justify-center my-4">
-            <div className="border-t border-zinc-200 dark:border-white/[0.08] w-full" />
-            <span className="bg-white dark:bg-[#121215] px-3 text-[11px] uppercase tracking-wider text-zinc-400 font-semibold absolute">
+            <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+            <span className="bg-white dark:bg-[#111827] px-3 text-[11px] uppercase tracking-wider text-slate-400 font-semibold absolute select-none">
               or continue with email
             </span>
           </div>
         </div>
 
-        {/* Traditional Credentials Form */}
+        {/* Credentials Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Email Address"
             type="email"
-            placeholder="you@domain.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             leftIcon={<Mail className="w-4 h-4" />}
@@ -118,21 +118,30 @@ export const LoginPage: React.FC = () => {
             autoComplete="email"
           />
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Input
               label="Password"
               isPassword
-              placeholder="••••••••"
+              placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               leftIcon={<Lock className="w-4 h-4" />}
               required
               autoComplete="current-password"
             />
-            <div className="flex justify-end pt-1">
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer accent-blue-600"
+                />
+                <span className="text-xs text-slate-600 dark:text-slate-400">Remember me</span>
+              </label>
               <Link
                 to="/forgot-password"
-                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 hover:underline"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline"
               >
                 Forgot password?
               </Link>
@@ -150,21 +159,21 @@ export const LoginPage: React.FC = () => {
         </form>
 
         {/* Footer Link to Register */}
-        <div className="pt-2 text-center text-xs text-zinc-600 dark:text-zinc-400">
+        <div className="pt-2 text-center text-xs text-slate-600 dark:text-slate-400">
           <span>Don't have an account yet? </span>
           <Link
             to="/register"
-            className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 hover:underline"
+            className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline"
           >
             Create one for free
           </Link>
         </div>
 
         {/* Quick link for unverified users */}
-        <div className="text-center">
+        <div className="text-center pt-1">
           <Link
             to="/resend-verification"
-            className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
             Didn't receive email verification? Resend link
           </Link>
