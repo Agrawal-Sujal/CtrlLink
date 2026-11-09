@@ -20,7 +20,7 @@ import {
   ArrowRight,
   TrendingUp,
 } from 'lucide-react';
-import { Navbar } from '../components/Navbar';
+import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Button } from '../components/Button';
 import { AlertBanner } from '../components/AlertBanner';
 import { UrlEditModal } from '../components/url/UrlEditModal';
@@ -223,13 +223,8 @@ export const TagsPage: React.FC = () => {
   const topTag = tags.length > 0 ? [...tags].sort((a, b) => b.count - a.count)[0] : null;
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 transition-colors duration-200 relative overflow-hidden">
-      {/* Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[250px] bg-indigo-500/10 dark:bg-indigo-600/15 blur-[120px] pointer-events-none" />
-
-      <Navbar />
-
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <DashboardLayout>
+      <div className="space-y-8">
         {alert && (
           <AlertBanner
             type={alert.type}
@@ -670,7 +665,7 @@ export const TagsPage: React.FC = () => {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Edit Link Modal */}
       <UrlEditModal
@@ -696,6 +691,6 @@ export const TagsPage: React.FC = () => {
         isOpen={!!passwordModalShortId}
         onClose={() => setPasswordModalShortId(null)}
       />
-    </div>
+    </DashboardLayout>
   );
 };

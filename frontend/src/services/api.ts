@@ -183,7 +183,7 @@ export const urlApi = {
 
   getStats: async (
     shortId: string,
-    range: 'all' | '7d' | '24h' = 'all'
+    range: 'all' | '7d' | '30d' | '24h' = 'all'
   ): Promise<UrlStatsResponse> => {
     const response = await apiClient.get<UrlStatsResponse>(`/api/v1/url/stats/${shortId}`, {
       params: { range },

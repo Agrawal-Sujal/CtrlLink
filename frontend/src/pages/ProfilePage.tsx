@@ -16,7 +16,7 @@ import {
   X,
   ShieldCheck,
 } from 'lucide-react';
-import { Navbar } from '../components/Navbar';
+import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { AlertBanner } from '../components/AlertBanner';
@@ -191,10 +191,8 @@ export const ProfilePage: React.FC = () => {
   const activeAvatar = pendingPreview || profilePictureUrl;
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <Navbar />
-
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <DashboardLayout>
+      <div className="max-w-3xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between">
           <Link
@@ -393,7 +391,7 @@ export const ProfilePage: React.FC = () => {
             <span>Your credentials are encrypted using industry-standard bcrypt and JWT tokens.</span>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
