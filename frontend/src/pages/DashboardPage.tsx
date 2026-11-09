@@ -60,7 +60,11 @@ export const DashboardPage: React.FC = () => {
       // Fetch up to 1000 user links to compute accurate aggregates & top URLs
       const data = await urlApi.getMyLinks('', 0, 1000);
       setLinks(data.content || []);
-      setTotalCount(data.totalElements ?? (data.content ? data.content.length : 0));
+      const total =
+        data.totalElements ??
+        data.page?.totalElements ??
+        (data.content ? data.content.length : 0);
+      setTotalCount(total);
     } catch (err: unknown) {
       log.warn('Could not load dashboard links:', err);
     }

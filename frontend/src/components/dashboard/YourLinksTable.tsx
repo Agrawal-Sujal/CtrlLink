@@ -134,7 +134,19 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
 
   // Build page buttons list strictly based on totalPages
   const renderPaginationButtons = () => {
-    if (totalPages <= 1) return null;
+    if (totalPages < 1) return null;
+    if (totalPages === 1) {
+      return (
+        <button
+          type="button"
+          disabled
+          className="w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center bg-blue-600 text-white shadow-xs cursor-default"
+          aria-current="page"
+        >
+          1
+        </button>
+      );
+    }
 
     const getPaginationRange = (current: number, total: number): (number | string)[] => {
       if (total <= 7) {
@@ -235,6 +247,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
         <table className="w-full text-left text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+              <th className="pb-3 pr-2 w-10 text-center">#</th>
               <th className="pb-3 pr-4">SHORT URL</th>
               <th className="pb-3 px-4">TITLE &amp; DESTINATION</th>
               <th className="pb-3 px-4">TAGS</th>
@@ -247,14 +260,14 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
             {isLoading && links.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400">
+                <td colSpan={8} className="py-12 text-center text-slate-400">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                   Loading your short links...
                 </td>
               </tr>
             ) : links.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center space-y-2">
+                <td colSpan={8} className="py-12 text-center space-y-2">
                   <Link2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 -rotate-45" />
                   <p className="font-semibold text-slate-700 dark:text-slate-300">
                     No short links found
@@ -267,15 +280,21 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
                 </td>
               </tr>
             ) : (
-              links.map((item) => {
+              links.map((item, idx) => {
                 const displayPath = item.customPath || item.shortId;
                 const isCopied = copiedId === item.shortId;
+                const rowNumber = startIndex + idx + 1;
 
                 return (
                   <tr
                     key={item.shortId}
                     className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                   >
+                    {/* ROW INDEX (#) */}
+                    <td className="py-3.5 pr-2 w-10 text-center text-xs font-semibold text-slate-400 dark:text-slate-500 font-mono select-none">
+                      {rowNumber}
+                    </td>
+
                     {/* SHORT URL */}
                     <td className="py-3.5 pr-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 font-mono">
@@ -427,14 +446,15 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
           )}
         </div>
 
-        {/* Pagination controls only if more than 1 page */}
-        {totalPages > 1 && (
+        {/* Pagination controls */}
+        {totalCount > 0 && (
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={currentPage === 1}
+              disabled={currentPage <= 1}
               onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
               className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
+              title="Previous page"
             >
               Previous
             </button>
@@ -443,9 +463,10 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
 
             <button
               type="button"
-              disabled={currentPage === totalPages}
+              disabled={currentPage >= totalPages}
               onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
               className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
+              title="Next page"
             >
               Next
             </button>

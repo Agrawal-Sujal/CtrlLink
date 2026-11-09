@@ -75,7 +75,11 @@ export const LinksPage: React.FC = () => {
         const tagFilter = tag !== 'all' ? tag : undefined;
         const data = await urlApi.getMyLinks(search, page - 1, size, tagFilter);
         setLinks(data.content || []);
-        setTotalCount(data.totalElements ?? (data.content ? data.content.length : 0));
+        const total =
+          data.totalElements ??
+          data.page?.totalElements ??
+          (data.content ? data.content.length : 0);
+        setTotalCount(total);
       } catch (err: unknown) {
         log.warn('Could not load links:', err);
       } finally {

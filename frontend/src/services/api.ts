@@ -173,7 +173,14 @@ export const urlApi = {
     const response = await apiClient.get<PageResponse<UrlStatsResponse>>('/api/v1/url/my-links', {
       params,
     });
-    return response.data;
+    const res = response.data;
+    if (res && res.page) {
+      if (res.totalElements === undefined) res.totalElements = res.page.totalElements;
+      if (res.totalPages === undefined) res.totalPages = res.page.totalPages;
+      if (res.size === undefined) res.size = res.page.size;
+      if (res.number === undefined) res.number = res.page.number;
+    }
+    return res;
   },
 
   getUserTags: async (): Promise<TagSummary[]> => {
