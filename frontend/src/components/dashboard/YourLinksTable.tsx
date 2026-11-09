@@ -25,6 +25,8 @@ interface YourLinksTableProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: number[];
   isLoading?: boolean;
   onCopy: (shortId: string, customPath?: string) => void;
   copiedId: string | null;
@@ -45,6 +47,8 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
   currentPage,
   onPageChange,
   pageSize = 10,
+  onPageSizeChange,
+  pageSizeOptions = [10, 25, 50, 100],
   isLoading = false,
   onCopy,
   copiedId,
@@ -54,8 +58,8 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
   onVisit,
 }) => {
   // Decide total pages purely on the basis of total links
-  const totalPages = Math.ceil(totalCount / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
+  const totalPages = totalCount > 0 ? Math.ceil(totalCount / pageSize) : 0;
+  const startIndex = totalCount > 0 ? (currentPage - 1) * pageSize : 0;
   const endIndex = Math.min(startIndex + links.length, totalCount);
 
   const formatDate = (dateStr?: string) => {
@@ -132,23 +136,25 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
   const renderPaginationButtons = () => {
     if (totalPages <= 1) return null;
 
-    const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('...');
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (currentPage < totalPages - 2) pages.push('...');
-      pages.push(totalPages);
-    }
+    const getPaginationRange = (current: number, total: number): (number | string)[] => {
+      if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+      if (current <= 4) {
+        return [1, 2, 3, 4, 5, '...', total];
+      }
+      if (current >= total - 3) {
+        return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+      }
+      return [1, '...', current - 1, current, current + 1, '...', total];
+    };
+
+    const pages = getPaginationRange(currentPage, totalPages);
 
     return pages.map((p, idx) => {
       if (p === '...') {
         return (
-          <span key={`dots-${idx}`} className="px-1 text-slate-400">
+          <span key={`dots-${idx}`} className="px-1 text-slate-400 select-none">
             ...
           </span>
         );
@@ -161,9 +167,10 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
           onClick={() => onPageChange(pageNum)}
           className={`w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center cursor-pointer transition-colors ${
             currentPage === pageNum
-              ? 'bg-blue-600 text-white'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
           }`}
+          aria-current={currentPage === pageNum ? 'page' : undefined}
         >
           {pageNum}
         </button>
@@ -255,7 +262,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
                   <p className="text-xs text-slate-400">
                     {search || selectedTag !== 'all'
                       ? 'No links match your search/tag filter.'
-                      : 'Create your first short link using the quick shorten form above!'}
+                      : 'No short links found. Create your first short link to get started!'}
                   </p>
                 </td>
               </tr>
@@ -386,12 +393,38 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
         </table>
       </div>
 
-      {/* Footer: Pagination decided strictly on total links */}
+      {/* Footer: Pagination & Links per page */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-        <div>
-          {totalCount > 0
-            ? `Showing ${startIndex + 1} to ${endIndex} of ${totalCount} links`
-            : '0 links'}
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <div>
+            {totalCount > 0
+              ? `Showing ${startIndex + 1} to ${endIndex} of ${totalCount} links`
+              : '0 links'}
+          </div>
+
+          {totalCount > 0 && onPageSizeChange && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+              <label htmlFor="links-per-page" className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                Links per page:
+              </label>
+              <div className="relative">
+                <select
+                  id="links-per-page"
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="appearance-none pl-2.5 pr-6 py-1 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pagination controls only if more than 1 page */}
@@ -401,7 +434,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
               type="button"
               disabled={currentPage === 1}
               onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-              className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer"
+              className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
             >
               Previous
             </button>
@@ -412,7 +445,7 @@ export const YourLinksTable: React.FC<YourLinksTableProps> = ({
               type="button"
               disabled={currentPage === totalPages}
               onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-              className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer"
+              className="px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
             >
               Next
             </button>

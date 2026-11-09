@@ -251,6 +251,28 @@ class UrlServiceTest {
     }
 
     @Test
+    void shouldReturnPaginatedMyLinksWithCustomPageSize() {
+        Long userId = 42L;
+        Pageable pageable = PageRequest.of(1, 25);
+        UrlEntity entity = new UrlEntity();
+        entity.setShortId("abc99");
+        entity.setLongUrl("https://example.com/page2");
+        Page<UrlEntity> page = new PageImpl<>(List.of(entity), pageable, 50);
+
+        when(urlRepository.findByUserId(userId, pageable)).thenReturn(page);
+
+        Page<UrlStatsResponseDto> result = urlService.getMyLinks(userId, null, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(50, result.getTotalElements());
+        assertEquals(2, result.getTotalPages());
+        assertEquals(1, result.getNumber());
+        assertEquals(25, result.getSize());
+        assertEquals(1, result.getContent().size());
+        assertEquals("abc99", result.getContent().get(0).getShortId());
+    }
+
+    @Test
     void shouldIncrementPlatformLinksWhenCustomAliasCreated() {
         String longUrl = "https://example.com/custom";
         String alias = "mybrand";

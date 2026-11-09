@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UrlStatsResponse } from '../../types/url';
 import { ChevronRight, BarChart2 } from 'lucide-react';
 
@@ -13,6 +14,8 @@ export const ClicksByShortUrlCard: React.FC<ClicksByShortUrlCardProps> = ({
   onSelectUrl,
   onViewAll,
 }) => {
+  const navigate = useNavigate();
+
   // Sort user's real links by clickCount descending
   const sorted = [...urls].sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
   const top5 = sorted.slice(0, 5);
@@ -99,8 +102,7 @@ export const ClicksByShortUrlCard: React.FC<ClicksByShortUrlCardProps> = ({
             if (onViewAll) {
               onViewAll();
             } else {
-              const el = document.getElementById('your-links');
-              el?.scrollIntoView({ behavior: 'smooth' });
+              navigate('/links');
             }
           }}
           className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer"

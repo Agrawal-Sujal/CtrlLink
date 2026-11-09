@@ -17,6 +17,14 @@ interface SidebarProps {
   className?: string;
 }
 
+interface NavItem {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  to: string;
+  isActive: boolean;
+  onClick?: () => void;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen = false,
   onClose,
@@ -26,10 +34,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { resolvedTheme, setTheme } = useTheme();
 
   const isDashboardActive = location.pathname === '/' || location.pathname === '/dashboard';
+  const isLinksActive = location.pathname === '/links' || location.pathname === '/urls';
   const isTagsActive = location.pathname === '/tags';
   const isProfileActive = location.pathname === '/profile';
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       label: 'Dashboard',
       icon: LayoutDashboard,
@@ -39,16 +48,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       label: 'Links',
       icon: Link2,
-      to: '/#your-links',
-      isActive: false,
-      onClick: () => {
-        if (location.pathname === '/' || location.pathname === '/dashboard') {
-          const el = document.getElementById('your-links');
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth' });
-          }
-        }
-      },
+      to: '/links',
+      isActive: isLinksActive,
     },
     {
       label: 'Tags',
