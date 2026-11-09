@@ -31,15 +31,15 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles = {
     primary:
-      'bg-linear-to-r from-indigo-600 via-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white shadow-md shadow-indigo-500/25 focus:ring-indigo-500 border border-indigo-400/20',
+      'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm shadow-blue-500/25 focus:ring-blue-500 border border-blue-500/30',
     secondary:
-      'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 dark:bg-zinc-850 dark:hover:bg-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-white/[0.08] focus:ring-zinc-400',
+      'bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 focus:ring-blue-400',
     outline:
-      'bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-850/80 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-white/[0.12] focus:ring-zinc-400',
+      'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 focus:ring-slate-400 shadow-xs',
     ghost:
-      'bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-850/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-transparent focus:ring-zinc-400',
+      'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-transparent focus:ring-slate-400',
     danger:
-      'bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-500/20 focus:ring-rose-500 border border-rose-400/20',
+      'bg-rose-600 hover:bg-rose-500 text-white shadow-xs focus:ring-rose-500 border border-rose-500/20',
   };
 
   return (

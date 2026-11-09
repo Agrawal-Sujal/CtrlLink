@@ -25,17 +25,17 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({ password }) 
       return { score: 2, label: 'Weak', color: 'bg-amber-500', text: 'text-amber-500' };
     }
     if (passedCount === 3) {
-      return { score: 3, label: 'Good', color: 'bg-cyan-500', text: 'text-cyan-500' };
+      return { score: 3, label: 'Good', color: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' };
     }
-    return { score: 4, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-500' };
+    return { score: 4, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' };
   };
 
   const meta = getStrengthMeta();
 
   return (
-    <div className="w-full space-y-2 mt-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-white/[0.08] text-xs">
+    <div className="w-full space-y-2 mt-2 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-xs">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-zinc-500 dark:text-zinc-400">Password Strength:</span>
+        <span className="text-slate-500 dark:text-slate-400 font-medium">Password Strength:</span>
         <span className={`font-semibold ${meta.text}`}>{meta.label}</span>
       </div>
 
@@ -44,7 +44,7 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({ password }) 
           <div
             key={step}
             className={`h-full rounded-full transition-all duration-300 ${
-              step <= meta.score ? meta.color : 'bg-zinc-200 dark:bg-zinc-800'
+              step <= meta.score ? meta.color : 'bg-slate-200 dark:bg-slate-800'
             }`}
           />
         ))}
@@ -57,13 +57,13 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({ password }) 
             className={`flex items-center gap-1.5 text-[11px] ${
               item.valid
                 ? 'text-emerald-600 dark:text-emerald-400 font-medium'
-                : 'text-zinc-400 dark:text-zinc-500'
+                : 'text-slate-400 dark:text-slate-500'
             }`}
           >
             {item.valid ? (
               <Check className="w-3 h-3 shrink-0 stroke-[2.5]" />
             ) : (
-              <X className="w-3 h-3 shrink-0 opacity-70" />
+              <X className="w-3 h-3 shrink-0 opacity-60" />
             )}
             <span>{item.label}</span>
           </div>
