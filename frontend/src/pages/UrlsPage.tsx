@@ -193,9 +193,9 @@ export const UrlsPage: React.FC = () => {
   };
 
   const handleDeleteUrl = async (shortId: string) => {
-    if (!window.confirm(`Are you sure you want to delete short link /${shortId}?`)) {
-      return;
-    }
+    // if (!window.confirm(`Are you sure you want to delete short link /${shortId}?`)) {
+    //   return;
+    // }
 
     try {
       await urlApi.deleteUrl(shortId);
