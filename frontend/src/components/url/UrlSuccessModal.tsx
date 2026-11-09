@@ -50,7 +50,7 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
   const displayShortUrl =
     url.shortUrl && !url.shortUrl.includes('/r/')
       ? url.shortUrl
-      : `${API_BASE_URL}/redirect/${url.customPath || url.shortId}`;
+      : `${API_BASE_URL}/${url.customPath || url.shortId}`;
 
   const handleCopyShort = () => {
     navigator.clipboard.writeText(displayShortUrl);

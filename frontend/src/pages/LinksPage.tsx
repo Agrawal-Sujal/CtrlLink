@@ -210,7 +210,7 @@ export const LinksPage: React.FC = () => {
 
   const handleCopyLink = (shortId: string, customPath?: string) => {
     const displayPath = customPath || shortId;
-    const full = `${API_BASE_URL}/redirect/${displayPath}`;
+    const full = `${API_BASE_URL}/${displayPath}`;
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);

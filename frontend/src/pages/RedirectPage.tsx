@@ -11,7 +11,7 @@ export const RedirectPage: React.FC = () => {
       .replace(/^\//, '');
     if (path) {
       // Instantly hand off to backend 302 redirect without rendering any intermediate screen
-      window.location.replace(`${API_BASE_URL}/redirect/${path}`);
+      window.location.replace(`${API_BASE_URL}/${path}`);
     }
   }, []);
 
