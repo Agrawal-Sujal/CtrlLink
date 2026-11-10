@@ -40,7 +40,6 @@ export const App: React.FC = () => {
               {/* Public Short Link Redirection & Password Challenge */}
               <Route path="/p/*" element={<PasswordChallengePage />} />
               <Route path="/r/*" element={<RedirectPage />} />
-              <Route path="/redirect/*" element={<RedirectPage />} />
 
               {/* Protected URL Shortener & Profile Routes (Require Authentication) */}
               <Route element={<ProtectedRoute />}>

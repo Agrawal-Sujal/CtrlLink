@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   envDir: '../',
+  envPrefix: ['VITE_', 'REDIRECT_VITE_'],
   server: {
     port: 3000,
     allowedHosts: true,

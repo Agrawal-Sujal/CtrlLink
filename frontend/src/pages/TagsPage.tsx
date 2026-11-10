@@ -29,9 +29,9 @@ import { UrlPasswordModal } from '../components/url/UrlPasswordModal';
 import { urlApi, getErrorMessage } from '../services/api';
 import { UrlStatsResponse, TagSummary } from '../types/url';
 import { logger } from '../utils/logger';
+import { buildShortUrl } from '../utils/url';
 
 const log = logger.withModule('TagsPage');
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export const TagsPage: React.FC = () => {
   const [tags, setTags] = useState<TagSummary[]>([]);
@@ -116,7 +116,7 @@ export const TagsPage: React.FC = () => {
   };
 
   const handleCopyLink = (shortId: string, customPath?: string) => {
-    const full = `${API_BASE_URL}/${customPath || shortId}`;
+    const full = buildShortUrl(customPath || shortId);
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);
