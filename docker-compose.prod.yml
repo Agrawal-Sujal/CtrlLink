@@ -62,6 +62,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_SSL_ENABLED: ${REDIS_SSL_ENABLED:-false}
       APP_BASE_URL: ${APP_BASE_URL}
+      REDIRECT_BASE_URL: ${REDIRECT_VITE_API_BASE_URL:-${APP_BASE_URL}}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL}
       APP_ALLOWED_ORIGIN: ${APP_ALLOWED_ORIGIN}
       APP_URL_ID_BATCH_SIZE: ${APP_URL_ID_BATCH_SIZE}
@@ -98,6 +99,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        REDIRECT_VITE_API_BASE_URL: ${REDIRECT_VITE_API_BASE_URL}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     image: sujalagrawal47/ctrllink-frontend:latest
     container_name: ctrllink-frontend

@@ -13,9 +13,9 @@ import { UrlAnalyticsModal } from '../components/url/UrlAnalyticsModal';
 import { UrlPasswordModal } from '../components/url/UrlPasswordModal';
 import { urlApi, getErrorMessage } from '../services/api';
 import { ShortenResponse, UrlStatsResponse, TagSummary } from '../types/url';
+import { buildShortUrl } from '../utils/url';
 
 const log = logger.withModule('LinksPage');
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export const LinksPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -209,8 +209,7 @@ export const LinksPage: React.FC = () => {
   };
 
   const handleCopyLink = (shortId: string, customPath?: string) => {
-    const displayPath = customPath || shortId;
-    const full = `${API_BASE_URL}/${displayPath}`;
+    const full = buildShortUrl(customPath || shortId);
     navigator.clipboard.writeText(full);
     setCopiedId(shortId);
     setTimeout(() => setCopiedId(null), 2000);

@@ -29,6 +29,7 @@ import {
 import { urlApi, getErrorMessage } from '../../services/api';
 import { UrlStatsResponse } from '../../types/url';
 import { useTheme } from '../../context/ThemeContext';
+import { buildShortUrl } from '../../utils/url';
 import { AlertBanner } from '../AlertBanner';
 
 interface UrlAnalyticsModalProps {
@@ -38,8 +39,6 @@ interface UrlAnalyticsModalProps {
 }
 
 type RangeType = 'all' | '7d' | '24h';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export const UrlAnalyticsModal: React.FC<UrlAnalyticsModalProps> = ({
   shortId,
@@ -128,7 +127,7 @@ export const UrlAnalyticsModal: React.FC<UrlAnalyticsModalProps> = ({
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${API_BASE_URL}/${stats?.customPath || shortId}`);
+    navigator.clipboard.writeText(buildShortUrl(stats?.customPath || shortId || ''));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -149,7 +148,7 @@ export const UrlAnalyticsModal: React.FC<UrlAnalyticsModalProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-base font-bold text-indigo-600 dark:text-indigo-400">
-                /{shortId}
+                /{stats?.customPath || shortId}
               </span>
               <button
                 type="button"

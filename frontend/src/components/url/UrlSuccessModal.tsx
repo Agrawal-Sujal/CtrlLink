@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../Button';
+import { buildShortUrl } from '../../utils/url';
 
 interface UrlSuccessModalProps {
   url: {
@@ -32,8 +33,6 @@ interface UrlSuccessModalProps {
   onViewAnalytics?: (shortId: string) => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
 export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
   url,
   isOpen,
@@ -46,11 +45,8 @@ export const UrlSuccessModal: React.FC<UrlSuccessModalProps> = ({
 
   if (!isOpen || !url) return null;
 
-  // Consistent short URL representation using backend redirect URL
-  const displayShortUrl =
-    url.shortUrl && !url.shortUrl.includes('/r/')
-      ? url.shortUrl
-      : `${API_BASE_URL}/${url.customPath || url.shortId}`;
+  // Short URL constructed using REDIRECT_VITE_API_BASE_URL
+  const displayShortUrl = buildShortUrl(url.customPath || url.shortId);
 
   const handleCopyShort = () => {
     navigator.clipboard.writeText(displayShortUrl);

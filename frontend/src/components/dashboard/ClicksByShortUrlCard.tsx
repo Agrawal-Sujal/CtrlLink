@@ -57,7 +57,7 @@ export const ClicksByShortUrlCard: React.FC<ClicksByShortUrlCardProps> = ({
         ) : (
           <div className="space-y-4 pt-1">
             {top5.map((item, idx) => {
-              const displayPath = `/redirect/${item.customPath || item.shortId}`;
+              const displayPath = `/${item.customPath || item.shortId}`;
               const clicks = item.clickCount || 0;
               const barWidth =
                 maxClicks > 0 && clicks > 0
