@@ -5,7 +5,7 @@ import {
   ClipboardPaste,
   ChevronDown,
   ChevronUp,
-  Folder,
+  Hash,
   Eye,
   EyeOff,
   X,
@@ -192,20 +192,23 @@ export const QuickShortenCard: React.FC<QuickShortenCardProps> = ({
               </div>
             </div>
 
-            {/* 2. Custom Alias / Folder Path */}
+            {/* 2. Custom Alias (Root only, no folders) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Custom Alias / Folder Path
+                Custom Alias
               </label>
               <div className="relative flex items-center">
                 <input
                   type="text"
-                  placeholder="youtube/videos/react"
+                  placeholder="e.g. my-custom-link"
                   value={customAlias}
-                  onChange={(e) => setCustomAlias(e.target.value)}
+                  onChange={(e) => {
+                    // Disallow folder slashes - only root level custom alias allowed on home page
+                    setCustomAlias(e.target.value.replace(/\//g, ''));
+                  }}
                   className="w-full text-xs sm:text-sm py-2 pl-3 pr-8 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-blue-500"
                 />
-                <Folder className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                <Hash className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
               </div>
             </div>
 

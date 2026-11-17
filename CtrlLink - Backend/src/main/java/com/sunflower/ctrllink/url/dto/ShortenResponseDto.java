@@ -16,6 +16,8 @@ public class ShortenResponseDto {
     private String password;
     private String category;
     private Set<String> tags;
+    @com.fasterxml.jackson.annotation.JsonProperty("custom")
+    private boolean custom;
 
     public ShortenResponseDto(String shortId, String shortUrl, String longUrl, LocalDateTime createdAt,
                               String title, boolean passwordProtected, String password, String category, Set<String> tags) {
@@ -25,6 +27,12 @@ public class ShortenResponseDto {
     public ShortenResponseDto(String shortId, String customPath, String folderPathKey, String shortUrl, String longUrl,
                               LocalDateTime createdAt, String title, boolean passwordProtected, String password,
                               String category, Set<String> tags) {
+        this(shortId, customPath, folderPathKey, shortUrl, longUrl, createdAt, title, passwordProtected, password, category, tags, false);
+    }
+
+    public ShortenResponseDto(String shortId, String customPath, String folderPathKey, String shortUrl, String longUrl,
+                              LocalDateTime createdAt, String title, boolean passwordProtected, String password,
+                              String category, Set<String> tags, boolean custom) {
         this.shortId = shortId;
         this.customPath = customPath != null ? customPath : shortId;
         this.folderPathKey = folderPathKey != null ? folderPathKey : "";
@@ -36,6 +44,7 @@ public class ShortenResponseDto {
         this.password = password;
         this.category = category;
         this.tags = tags;
+        this.custom = custom;
     }
 
     public String getTitle() {
@@ -80,5 +89,13 @@ public class ShortenResponseDto {
 
     public Set<String> getTags() {
         return tags;
+    }
+
+    public boolean isCustom() {
+        return custom;
+    }
+
+    public void setCustom(boolean custom) {
+        this.custom = custom;
     }
 }
