@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Folder,
   Plus,
@@ -10,6 +10,11 @@ import {
   Server,
   ChevronRight,
   Trash2,
+  Maximize2,
+  Minimize2,
+  Hand,
+  MousePointer,
+  Crosshair,
 } from 'lucide-react';
 import { FolderTreeNode, computeTreeLayout } from '../../utils/folderTree';
 
@@ -29,53 +34,250 @@ export const FolderTreeCanvas: React.FC<FolderTreeCanvasProps> = ({
   onDeleteFolder,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Canvas Viewport Transform State
   const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 60, y: 60 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [activeTool, setActiveTool] = useState<'select' | 'hand'>('hand');
+
+  // Drag tracking refs
+  const dragStartRef = useRef<{ clientX: number; clientY: number }>({ clientX: 0, clientY: 0 });
+  const startPanRef = useRef<{ x: number; y: number }>({ x: 60, y: 60 });
+  const hasMovedRef = useRef<boolean>(false);
 
   // Compute layout (nodes with x, y and curved bezier edges)
   const NODE_WIDTH = 260;
   const NODE_HEIGHT = 136;
-  const layout = computeTreeLayout(root, NODE_WIDTH, NODE_HEIGHT, 120, 32);
+  const layout = computeTreeLayout(root, NODE_WIDTH, NODE_HEIGHT, 130, 36);
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.15, 1.8));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.5));
-  const handleResetZoom = () => setZoom(1);
+  // Reset View
+  const handleResetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 60, y: 60 });
+  }, []);
+
+  // Fit to screen
+  const handleFitToScreen = useCallback(() => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const padding = 80;
+    const scaleX = (clientWidth - padding) / layout.canvasWidth;
+    const scaleY = (clientHeight - padding) / layout.canvasHeight;
+    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.4), 1.2);
+    const roundedScale = Math.round(fitScale * 100) / 100;
+
+    const centeredX = Math.max((clientWidth - layout.canvasWidth * roundedScale) / 2, 40);
+    const centeredY = Math.max((clientHeight - layout.canvasHeight * roundedScale) / 2, 40);
+
+    setZoom(roundedScale);
+    setPan({ x: centeredX, y: centeredY });
+  }, [layout.canvasWidth, layout.canvasHeight]);
+
+  const handleZoomIn = () => {
+    setZoom((z) => Math.min(Math.round((z + 0.15) * 100) / 100, 2.5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((z) => Math.max(Math.round((z - 0.15) * 100) / 100, 0.3));
+  };
+
+  // Intercept wheel/pinch events strictly inside canvas container to prevent browser page zoom!
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Prevent browser viewport zoom (which zooms sidebar and rest of webpage)
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch zoom gesture on trackpad or Ctrl+MouseWheel
+        const zoomDelta = -e.deltaY * 0.005;
+        setZoom((prevZoom) => {
+          const next = Math.min(Math.max(prevZoom + zoomDelta, 0.3), 2.5);
+          return Math.round(next * 100) / 100;
+        });
+      } else {
+        // Two-finger trackpad scroll or regular mousewheel: pan the canvas
+        setPan((prevPan) => ({
+          x: prevPan.x - e.deltaX,
+          y: prevPan.y - e.deltaY,
+        }));
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', onWheel);
+    };
+  }, []);
+
+  // Listen for Escape key to exit fullscreen
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMaximized) {
+        setIsMaximized(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMaximized]);
+
+  // Global mouseup listener while panning
+  useEffect(() => {
+    if (!isPanning) return;
+    const onGlobalMouseUp = () => setIsPanning(false);
+    window.addEventListener('mouseup', onGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', onGlobalMouseUp);
+  }, [isPanning]);
+
+  // Mouse pan / hand tool drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Middle click or left click on background or when hand tool is active
+    if (e.button === 1 || activeTool === 'hand' || !(e.target as HTMLElement).closest('.interactive-node-action')) {
+      setIsPanning(true);
+      hasMovedRef.current = false;
+      dragStartRef.current = { clientX: e.clientX, clientY: e.clientY };
+      startPanRef.current = { ...pan };
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning) return;
+    const dx = e.clientX - dragStartRef.current.clientX;
+    const dy = e.clientY - dragStartRef.current.clientY;
+
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      hasMovedRef.current = true;
+    }
+
+    setPan({
+      x: startPanRef.current.x + dx,
+      y: startPanRef.current.y + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
 
   return (
-    <div className="relative w-full h-[620px] bg-slate-50/60 dark:bg-[#0B0F17] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden select-none">
-      {/* Canvas Floating Controls */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
-        <button
-          type="button"
-          onClick={handleZoomOut}
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <span className="text-[11px] font-mono font-semibold px-1 text-slate-600 dark:text-slate-400 min-w-[42px] text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={handleZoomIn}
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-        <button
-          type="button"
-          onClick={handleResetZoom}
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Reset View"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
+    <div
+      className={
+        isMaximized
+          ? 'fixed inset-0 z-50 bg-slate-100 dark:bg-[#0B0F17] flex flex-col w-screen h-screen overflow-hidden select-none animate-in fade-in duration-200'
+          : 'relative w-full h-[calc(100vh-270px)] min-h-[600px] bg-slate-50/70 dark:bg-[#0B0F17] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden select-none transition-all'
+      }
+    >
+      {/* Top Floating Control Bar */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+        {/* Left: Maximized Header or Canvas Status */}
+        <div className="pointer-events-auto flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md text-xs">
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+          <span className="font-bold text-slate-800 dark:text-white">
+            {isMaximized ? 'Visual Tree Diagram (Full Screen)' : 'Tree Canvas'}
+          </span>
+          <span className="text-slate-400 hidden sm:inline">•</span>
+          <span className="text-slate-500 dark:text-slate-400 hidden sm:inline">
+            Drag to pan • Scroll to zoom
+          </span>
+        </div>
+
+        {/* Right: Canvas Tools Toolbar */}
+        <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
+          {/* Tool mode: Hand vs Select */}
+          <button
+            type="button"
+            onClick={() => setActiveTool((t) => (t === 'hand' ? 'select' : 'hand'))}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-medium ${
+              activeTool === 'hand'
+                ? 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+            title={activeTool === 'hand' ? 'Hand / Pan Tool Active' : 'Select Tool Active'}
+          >
+            {activeTool === 'hand' ? <Hand className="w-4 h-4" /> : <MousePointer className="w-4 h-4" />}
+            <span className="hidden md:inline">{activeTool === 'hand' ? 'Hand' : 'Select'}</span>
+          </button>
+
+          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+          {/* Zoom Controls */}
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <span className="text-[11px] font-mono font-semibold px-1 text-slate-600 dark:text-slate-400 min-w-[42px] text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+          {/* Fit to View */}
+          <button
+            type="button"
+            onClick={handleFitToScreen}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Fit Tree to View"
+          >
+            <Crosshair className="w-4 h-4" />
+          </button>
+
+          {/* Reset Zoom & Pan */}
+          <button
+            type="button"
+            onClick={handleResetView}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Reset View (100%)"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+          {/* Maximize / Minimize Button */}
+          <button
+            type="button"
+            onClick={() => setIsMaximized((m) => !m)}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+              isMaximized
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+            title={isMaximized ? 'Exit Full Screen (Esc)' : 'Maximize to Full Page'}
+          >
+            {isMaximized ? (
+              <>
+                <Minimize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Exit Full Page</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Maximize</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Canvas Hint / Legend */}
-      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex items-center gap-3 p-2 px-3 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-xs text-xs text-slate-500 dark:text-slate-400">
+      {/* Bottom Legend */}
+      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex items-center gap-3 p-2 px-3 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md text-xs text-slate-500 dark:text-slate-400 pointer-events-none">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
           <span>Custom URLs</span>
@@ -85,24 +287,45 @@ export const FolderTreeCanvas: React.FC<FolderTreeCanvasProps> = ({
           <span>Auto-generated URLs</span>
         </span>
         <span className="text-[11px] text-slate-400">
-          • Click card to view contents, click <span className="font-bold">+</span> to add
+          • Click card to inspect • Click <span className="font-bold">+</span> to add
         </span>
       </div>
 
-      {/* Scrollable / Zoomable Canvas Area */}
+      {/* Main Pan/Zoom Canvas Viewport */}
       <div
         ref={containerRef}
-        className="w-full h-full overflow-auto cursor-grab active:cursor-grabbing p-8"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className={`w-full h-full relative overflow-hidden ${
+          isPanning ? 'cursor-grabbing' : activeTool === 'hand' ? 'cursor-grab' : 'cursor-default'
+        }`}
+        style={{ touchAction: 'none' }}
       >
+        {/* Subtle grid pattern background */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
+          style={{
+            backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
+            backgroundSize: `${32 * zoom}px ${32 * zoom}px`,
+            backgroundPosition: `${pan.x}px ${pan.y}px`,
+            color: '#94a3b8',
+          }}
+        />
+
+        {/* Transformed Canvas Container (Moves with pan and scales with zoom) */}
         <div
           style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'top left',
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`,
+            transformOrigin: '0 0',
             width: layout.canvasWidth,
             height: layout.canvasHeight,
-            position: 'relative',
+            position: 'absolute',
+            left: 0,
+            top: 0,
           }}
-          className="transition-transform duration-100 ease-out"
+          className={isPanning ? '' : 'transition-transform duration-75 ease-out'}
         >
           {/* SVG Layer for Curved Bezier Arrows */}
           <svg
@@ -157,10 +380,14 @@ export const FolderTreeCanvas: React.FC<FolderTreeCanvasProps> = ({
                   width: NODE_WIDTH,
                   height: NODE_HEIGHT,
                 }}
-                onClick={() => onSelectNode(node)}
+                onClick={() => {
+                  if (!hasMovedRef.current) {
+                    onSelectNode(node);
+                  }
+                }}
                 className={`group rounded-2xl p-3.5 border-2 transition-all cursor-pointer shadow-md select-none flex flex-col justify-between ${
                   isSelected
-                    ? 'border-blue-600 dark:border-blue-500 bg-white dark:bg-[#131C2E] ring-4 ring-blue-500/15'
+                    ? 'border-blue-600 dark:border-blue-500 bg-white dark:bg-[#131C2E] ring-4 ring-blue-500/15 scale-[1.02]'
                     : 'border-slate-300 dark:border-slate-700/80 bg-white dark:bg-[#111827] hover:border-blue-400 dark:hover:border-blue-500/60 hover:shadow-lg'
                 }`}
               >
@@ -191,7 +418,7 @@ export const FolderTreeCanvas: React.FC<FolderTreeCanvasProps> = ({
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="interactive-node-action flex items-center gap-1 shrink-0">
                     {!node.isRoot && node.totalUrlsCount === 0 && node.children.length === 0 && onDeleteFolder && (
                       <button
                         type="button"
