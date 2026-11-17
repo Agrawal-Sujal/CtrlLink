@@ -136,7 +136,8 @@ public class UrlController {
                 entity.getPassword() != null,
                 entity.getPassword() != null ? encryptionUtils.decrypt(entity.getPassword()) : null,
                 entity.getCategory(),
-                entity.getTags()
+                entity.getTags(),
+                entity.isCustom()
         );
     }
 

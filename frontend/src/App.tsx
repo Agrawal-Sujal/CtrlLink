@@ -11,6 +11,7 @@ import { ResendVerificationPage } from './pages/ResendVerificationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LinksPage } from './pages/LinksPage';
+import { FoldersPage } from './pages/FoldersPage';
 import { TagsPage } from './pages/TagsPage';
 import { PasswordChallengePage } from './pages/PasswordChallengePage';
 import { RedirectPage } from './pages/RedirectPage';
@@ -47,6 +48,9 @@ export const App: React.FC = () => {
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 <Route path="/links" element={<LinksPage />} />
                 <Route path="/urls" element={<Navigate to="/links" replace />} />
+                <Route path="/folders" element={<FoldersPage />} />
+                <Route path="/tree" element={<Navigate to="/folders" replace />} />
+                <Route path="/hierarchy" element={<Navigate to="/folders" replace />} />
                 <Route path="/tags" element={<TagsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>

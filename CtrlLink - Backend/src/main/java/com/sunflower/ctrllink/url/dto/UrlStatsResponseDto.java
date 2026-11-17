@@ -24,6 +24,8 @@ public class UrlStatsResponseDto {
     private Integer orderIndex;
     private String category;
     private Set<String> tags;
+    @com.fasterxml.jackson.annotation.JsonProperty("custom")
+    private boolean custom;
 
     public UrlStatsResponseDto(String shortId, String longUrl, long clickCount, LocalDateTime lastAccessedTime,
                                LocalDateTime createdAt, String title, boolean passwordProtected, String password,
@@ -47,6 +49,15 @@ public class UrlStatsResponseDto {
                                boolean passwordProtected, String password, Map<String, Long> timeSeries,
                                Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices,
                                Integer orderIndex, String category, Set<String> tags) {
+        this(shortId, customPath, folderPathKey, longUrl, clickCount, lastAccessedTime, createdAt, expiryTime, title,
+                passwordProtected, password, timeSeries, countries, referrers, devices, orderIndex, category, tags, false);
+    }
+
+    public UrlStatsResponseDto(String shortId, String customPath, String folderPathKey, String longUrl, long clickCount,
+                               LocalDateTime lastAccessedTime, LocalDateTime createdAt, LocalDateTime expiryTime, String title,
+                               boolean passwordProtected, String password, Map<String, Long> timeSeries,
+                               Map<String, Long> countries, Map<String, Long> referrers, Map<String, Long> devices,
+                               Integer orderIndex, String category, Set<String> tags, boolean custom) {
         this.shortId = shortId;
         this.customPath = customPath != null ? customPath : shortId;
         this.folderPathKey = folderPathKey != null ? folderPathKey : "";
@@ -65,6 +76,7 @@ public class UrlStatsResponseDto {
         this.orderIndex = orderIndex;
         this.category = category;
         this.tags = tags;
+        this.custom = custom;
     }
 
     public String getTitle() {
@@ -137,5 +149,13 @@ public class UrlStatsResponseDto {
 
     public Set<String> getTags() {
         return tags;
+    }
+
+    public boolean isCustom() {
+        return custom;
+    }
+
+    public void setCustom(boolean custom) {
+        this.custom = custom;
     }
 }

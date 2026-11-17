@@ -322,7 +322,8 @@ public class UrlService {
                 devices,
                 entity.getOrderIndex(),
                 entity.getCategory(),
-                entity.getTags());
+                entity.getTags(),
+                entity.isCustom());
     }
 
     public List<TagSummaryDto> getUserTags(Long userId) {
@@ -398,7 +399,8 @@ public class UrlService {
                 new HashMap<>(),
                 entity.getOrderIndex(),
                 entity.getCategory(),
-                entity.getTags()
+                entity.getTags(),
+                entity.isCustom()
         );
     }
 

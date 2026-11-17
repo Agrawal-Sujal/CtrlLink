@@ -21,6 +21,8 @@ export interface ShortenResponse {
   password?: string;
   category?: string;
   tags?: string[];
+  custom?: boolean;
+  isCustom?: boolean;
 }
 
 export interface UrlStatsResponse {
@@ -42,6 +44,8 @@ export interface UrlStatsResponse {
   orderIndex?: number;
   category?: string;
   tags?: string[];
+  custom?: boolean;
+  isCustom?: boolean;
 }
 
 export interface PageResponse<T> {

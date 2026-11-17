@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Link2,
+  FolderTree,
   Tag,
   User,
   Sun,
@@ -35,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isDashboardActive = location.pathname === '/' || location.pathname === '/dashboard';
   const isLinksActive = location.pathname === '/links' || location.pathname === '/urls';
+  const isFoldersActive = location.pathname === '/folders' || location.pathname === '/tree' || location.pathname === '/hierarchy';
   const isTagsActive = location.pathname === '/tags';
   const isProfileActive = location.pathname === '/profile';
 
@@ -50,6 +52,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Link2,
       to: '/links',
       isActive: isLinksActive,
+    },
+    {
+      label: 'Folders',
+      icon: FolderTree,
+      to: '/folders',
+      isActive: isFoldersActive,
     },
     {
       label: 'Tags',
