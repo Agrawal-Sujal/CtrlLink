@@ -297,6 +297,39 @@ docker compose down -v
 
 ---
 
+## Local Testing Setup (Isolated from Production)
+
+When running local testing, all requests hit your local machine (local Backend, PostgreSQL, and Redis) rather than production domains or remote machines.
+
+### 1. Run the Entire Local Testing Stack via Docker Compose
+Run the entire local testing stack (PostgreSQL, Redis, Backend, Frontend, and Nginx configured for local testing):
+```bash
+docker compose -f docker-compose.local.testing.yml --env-file .env.local.testing up --build -d
+```
+
+### 2. Standalone / Hybrid Local Testing (Host Services)
+If running Backend and Frontend natively on your machine:
+1. **Start local DB & Redis**:
+   ```bash
+   docker compose -f docker-compose.local.testing.yml --env-file .env.local.testing up -d postgres redis
+   ```
+2. **Run Backend** with `local.testing` profile:
+   ```bash
+   cd "CtrlLink - Backend"
+   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local.testing
+   ```
+3. **Run Frontend** with local testing env:
+   ```bash
+   cd frontend
+   npm run dev -- --mode local.testing
+   ```
+4. **Nginx Reverse Proxy for Local Testing**:
+   - `nginx/nginx.local.testing.conf`: Proxies to local Docker Compose services (`backend:8080`, `frontend:3000`).
+   - `nginx/nginx.local.testing.host.conf`: Proxies to host-machine services (`host.docker.internal:8080`, `host.docker.internal:3000`).
+   - Also proxies `/swagger-ui/`, `/v3/api-docs`, `/actuator/`, and `/redirect/` to the local backend.
+
+---
+
 ## Local Development (Hybrid Setup)
 
 If you are developing features and want fast live-reloading:
